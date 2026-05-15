@@ -21,5 +21,5 @@ export interface User {
     name: string;
     age: number;
     experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-    routine: WeeklyPlan[];
+    routine: WeeklyPlan | null;
 }

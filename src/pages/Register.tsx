@@ -1,7 +1,7 @@
 
-import { useState, type FormEvent, type ChangeEvent } from "react";
+import { useState, useEffect, type FormEvent, type ChangeEvent } from "react";
 import type { User, Exercise, DayOfWeek, DayPlan } from "../Types";
-import { calculateRoutineTotalCalories, formatDuration, calculatePace, calculateCalories, calculateAverageCaloriesPerWorkoutDay, findHighestCalorieDay } from "../Logic";
+import { calculateRoutineTotalCalories, formatDuration, calculatePace, calculateCalories, calculateAverageCaloriesPerWorkoutDay, findHighestCalorieDay, findLongestExercise, findHighestCalorieExercise, calculatePercentageOfTotal } from "../Logic";
 
 export default function Register() {
     const [step, setStep] = useState(1);
@@ -20,8 +20,21 @@ export default function Register() {
         name: "",
         age: 0,
         experienceLevel: "beginner",
-        routine: [],
+        routine: null,
     });
+
+    // Sincroniza la rutina de trabajo (routineEntries) con el perfil del usuario
+    useEffect(() => {
+        if (routineEntries.length === 0) return;
+
+        setUser((prev) => ({
+            ...prev,
+            routine: {
+                name: "Mi rutina semanal",
+                entries: routineEntries,
+            },
+        }));
+    }, [routineEntries]);
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -60,15 +73,35 @@ export default function Register() {
             return;
         }
 
-        const newEntry: DayPlan = {
-            day: selectedDay,
-            exercises: [newExercise],
-        };
+        setRoutineEntries((prev) => {
+            const existingIndex = prev.findIndex((e) => e.day === selectedDay);
 
-        setRoutineEntries([...routineEntries, newEntry]);
+            if (existingIndex !== -1) {
+                const updated = [...prev];
+                updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    exercises: [...updated[existingIndex].exercises, newExercise],
+                };
+                return updated;
+            }
+
+            return [
+                ...prev,
+                { day: selectedDay, exercises: [newExercise] },
+            ];
+        });
 
         setNewExercise({ name: "", time: 0, caloriesBurned: 0 });
     };
+
+    const totalCalories = calculateRoutineTotalCalories(routineEntries);
+    const totalDuration = routineEntries.reduce(
+        (total, entry) =>
+            total + entry.exercises.reduce((sum, ex) => sum + ex.time, 0),
+        0
+    );
+    const longestExercise = findLongestExercise(routineEntries);
+    const highestCalorieExercise = findHighestCalorieExercise(routineEntries);
 
     return (
         <div className="register-container">
@@ -186,7 +219,7 @@ export default function Register() {
                             <h3>Tu rutina semanal</h3>
                             <p className="total-calories">
                                 <strong>🔥 Total de calorías:</strong>{" "}
-                                {calculateRoutineTotalCalories(routineEntries)} cal
+                                {totalCalories} cal
                                 {" — "}
                                 <strong>Promedio x día:</strong>{" "}
                                 {calculateAverageCaloriesPerWorkoutDay(routineEntries)} cal
@@ -195,20 +228,24 @@ export default function Register() {
                                 {findHighestCalorieDay(routineEntries) ?? "—"}
                                 {" — "}
                                 <strong>Duración total:</strong>{" "}
-                                {formatDuration(
-                                    routineEntries.reduce(
-                                        (total, entry) =>
-                                            total +
-                                            entry.exercises.reduce(
-                                                (sum, ex) => sum + ex.time,
-                                                0
-                                            ),
-                                        0
-                                    )
-                                )}
+                                {formatDuration(totalDuration)}
                             </p>
-                            {routineEntries.map((entry, index) => (
-                                <div key={index} className="day-block">
+
+                            <div className="exercise-stats">
+                                <p>
+                                    <strong>🏋️ Ejercicio más largo:</strong>{" "}
+                                    {longestExercise
+                                        ? `${longestExercise.name} (${formatDuration(longestExercise.time)})`
+                                        : "—"}
+                                    {" | "}
+                                    <strong>🔥 Ejercicio más intenso:</strong>{" "}
+                                    {highestCalorieExercise
+                                        ? `${highestCalorieExercise.name} (${calculateCalories(highestCalorieExercise)} cal)`
+                                        : "—"}
+                                </p>
+                            </div>
+                            {routineEntries.map((entry) => (
+                                <div key={entry.day} className="day-block">
                                     <h4>{entry.day}</h4>
                                     <ul>
                                         {entry.exercises.map((ex, exIndex) => {
@@ -218,6 +255,9 @@ export default function Register() {
                                                     <strong>{ex.name}</strong> —{" "}
                                                     {formatDuration(ex.time)},{" "}
                                                     {calculateCalories(ex)} cal
+                                                    {" ("}
+                                                    {calculatePercentageOfTotal(ex, totalCalories)}
+                                                    {"%)"}
                                                     {ex.distance !== undefined && (
                                                         <> — {ex.distance}km{pace !== null && ` (${pace} min/km)`}</>
                                                     )}
