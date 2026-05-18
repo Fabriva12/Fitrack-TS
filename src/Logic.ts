@@ -1,14 +1,13 @@
 import type { Exercise, DayPlan, DayOfWeek } from "./Types";
 
 export function calculateCalories(exercise: Exercise): number {
+    // time y caloriesBurned existen en TODOS los tipos de la unión
     return exercise.time * exercise.caloriesBurned;
 }
 
-export function calculatePace(exercise: Exercise): number | null {
-    if (exercise.distance === undefined || exercise.distance === 0) {
-        return null;
-    }
-    return Math.round((exercise.time / exercise.distance) * 100) / 100;
+export function calculatePace(time: number, distance: number): number {
+    if (distance === 0) return 0;
+    return Math.round((time / distance) * 100) / 100;
 }
 
 export function calculateRoutineTotalCalories(entries: DayPlan[]): number {

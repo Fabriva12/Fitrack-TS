@@ -1,62 +1,100 @@
-
 import { useState, useEffect, type FormEvent, type ChangeEvent } from "react";
-import type { User, Exercise, DayOfWeek, DayPlan } from "../Types";
-import { calculateRoutineTotalCalories, formatDuration, calculatePace, calculateCalories, calculateAverageCaloriesPerWorkoutDay, findHighestCalorieDay, findLongestExercise, findHighestCalorieExercise, calculatePercentageOfTotal } from "../Logic";
+import type {
+    User,
+    CardioFormData,
+    CardioExercise,
+    StrengthExercise,
+    FlexibilityExercise,
+    Exercise,
+    ExerciseForm as ExerciseFormType,
+    DayPlan,
+} from "../Types";
+import {
+    calculateRoutineTotalCalories,
+    calculatePace,
+    findLongestExercise,
+    findHighestCalorieExercise,
+} from "../Logic";
+import RegistrationForm from "../components/RegistrationForm";
+import UserProfile from "../components/UserProfile";
+import ExerciseForm from "../components/ExerciseForm";
+import ExerciseSummary from "../components/ExerciseSummary";
 
 export default function Register() {
     const [step, setStep] = useState(1);
 
-    const [selectedDay, setSelectedDay] = useState<DayOfWeek>("Lunes");
-
+    // ─── Rutina ───
+    const [selectedDay, setSelectedDay] = useState<DayPlan['day']>("Lunes");
     const [routineEntries, setRoutineEntries] = useState<DayPlan[]>([]);
 
-    const [newExercise, setNewExercise] = useState<Exercise>({
-        name: "",
-        time: 0,
-        caloriesBurned: 0,
+    // ─── Formulario de ejercicio: unión discriminada ───
+    const [exerciseType, setExerciseType] = useState<Exercise['type']>('cardio');
+
+    const defaultCardioForm = (): CardioFormData => ({
+        type: 'cardio', name: '', time: 0, caloriesBurned: 0,
+        distance: 0, heartRateZone: '',
     });
 
+    const defaultStrengthForm = (): StrengthExercise => ({
+        type: 'strength', name: '', time: 0, caloriesBurned: 0,
+        sets: 0, reps: 0, weight: 0,
+    });
+
+    const defaultFlexibilityForm = (): FlexibilityExercise => ({
+        type: 'flexibility', name: '', time: 0, caloriesBurned: 0,
+        poses: 0,
+    });
+
+    const [formData, setFormData] = useState<ExerciseFormType>(defaultCardioForm);
+
+    const handleTypeChange = (type: Exercise['type']) => {
+        setExerciseType(type);
+        switch (type) {
+            case 'cardio': setFormData(defaultCardioForm()); break;
+            case 'strength': setFormData(defaultStrengthForm()); break;
+            case 'flexibility': setFormData(defaultFlexibilityForm()); break;
+        }
+    };
+
+    // ─── Usuario ───
     const [user, setUser] = useState<User>({
-        name: "",
-        age: 0,
-        experienceLevel: "beginner",
+        name: "", age: 0, experienceLevel: "beginner",
+        plan: "", startDate: "", isActive: true,
         routine: null,
     });
 
-    // Sincroniza la rutina de trabajo (routineEntries) con el perfil del usuario
+    // Sincroniza la rutina con el perfil del usuario
     useEffect(() => {
         if (routineEntries.length === 0) return;
-
         setUser((prev) => ({
             ...prev,
-            routine: {
-                name: "Mi rutina semanal",
-                entries: routineEntries,
-            },
+            routine: { name: "Mi rutina semanal", entries: routineEntries },
         }));
     }, [routineEntries]);
 
+    // ─── Handlers del formulario de usuario ───
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
-        const { name, value } = e.target;
+        const target = e.target;
+        const { name } = target;
+        const value = target.type === 'checkbox'
+            ? (target as HTMLInputElement).checked
+            : target.value;
 
         setUser((prev) => ({
             ...prev,
-            [name]:
-                name === "age" ? Number(value) : value,
+            [name]: name === "age" ? Number(value) : value,
         }));
     };
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
 
-        // Validación básica: edad debe ser > 0 y entera
         if (user.age <= 0 || !Number.isInteger(user.age)) {
             alert("Por favor, ingresá una edad válida (número entero mayor a 0)");
             return;
         }
-
         if (!user.name.trim()) {
             alert("Por favor, ingresá tu nombre");
             return;
@@ -67,33 +105,56 @@ export default function Register() {
         setStep(2);
     };
 
+    // ─── Handler de agregar ejercicio ───
     const handleAddExercise = () => {
-        if (!newExercise.name.trim() || newExercise.time <= 0 || newExercise.caloriesBurned <= 0) {
+        if (!formData.name.trim() || formData.time <= 0 || formData.caloriesBurned <= 0) {
             alert("Completá nombre, duración y calorías del ejercicio");
             return;
         }
 
+        let exercise: Exercise;
+
+        switch (exerciseType) {
+            case 'cardio': {
+                const cardioForm = formData as CardioFormData;
+                exercise = {
+                    ...cardioForm,
+                    pace: calculatePace(cardioForm.time, cardioForm.distance),
+                } satisfies CardioExercise;
+                break;
+            }
+            case 'strength': {
+                exercise = formData as StrengthExercise;
+                break;
+            }
+            case 'flexibility': {
+                exercise = formData as FlexibilityExercise;
+                break;
+            }
+        }
+
         setRoutineEntries((prev) => {
             const existingIndex = prev.findIndex((e) => e.day === selectedDay);
-
             if (existingIndex !== -1) {
                 const updated = [...prev];
                 updated[existingIndex] = {
                     ...updated[existingIndex],
-                    exercises: [...updated[existingIndex].exercises, newExercise],
+                    exercises: [...updated[existingIndex].exercises, exercise],
                 };
                 return updated;
             }
-
-            return [
-                ...prev,
-                { day: selectedDay, exercises: [newExercise] },
-            ];
+            return [...prev, { day: selectedDay, exercises: [exercise] }];
         });
 
-        setNewExercise({ name: "", time: 0, caloriesBurned: 0 });
+        // Resetear formulario
+        switch (exerciseType) {
+            case 'cardio': setFormData(defaultCardioForm()); break;
+            case 'strength': setFormData(defaultStrengthForm()); break;
+            case 'flexibility': setFormData(defaultFlexibilityForm()); break;
+        }
     };
 
+    // ─── Estadísticas memoizadas ───
     const totalCalories = calculateRoutineTotalCalories(routineEntries);
     const totalDuration = routineEntries.reduce(
         (total, entry) =>
@@ -103,45 +164,15 @@ export default function Register() {
     const longestExercise = findLongestExercise(routineEntries);
     const highestCalorieExercise = findHighestCalorieExercise(routineEntries);
 
+    // ─── Render ───
     return (
         <div className="register-container">
             {step === 1 && (
-                <>
-                    <h1>Bienvenido a fitrack</h1>
-                    <h2>Regístrate para comenzar a planificar tu rutina de ejercicios</h2>
-
-                    <form onSubmit={handleSubmit}>
-                        <input
-                            type="text"
-                            name="name"
-                            placeholder="Nombre"
-                            value={user.name}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        <input
-                            type="number"
-                            name="age"
-                            placeholder="Edad"
-                            value={user.age}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        <select
-                            name="experienceLevel"
-                            value={user.experienceLevel}
-                            onChange={handleChange}
-                        >
-                            <option value="beginner">Principiante</option>
-                            <option value="intermediate">Intermedio</option>
-                            <option value="advanced">Avanzado</option>
-                        </select>
-
-                        <button type="submit">Registrarse</button>
-                    </form>
-                </>
+                <RegistrationForm
+                    user={user}
+                    onChange={handleChange}
+                    onSubmit={handleSubmit}
+                />
             )}
 
             {step === 2 && (
@@ -149,125 +180,26 @@ export default function Register() {
                     <h1>Agregá tus ejercicios</h1>
                     <h2>Registrá los ejercicios de tu rutina semanal</h2>
 
-                    {/* ——— Perfil del usuario ——— */}
-                    <section className="user-profile">
-                        <h3>Tu perfil</h3>
-                        <p><strong>Nombre:</strong> {user.name}</p>
-                        <p><strong>Edad:</strong> {user.age} años</p>
-                        <p><strong>Nivel:</strong> {user.experienceLevel === 'beginner' ? 'Principiante' : user.experienceLevel === 'intermediate' ? 'Intermedio' : 'Avanzado'}</p>
-                    </section>
+                    <UserProfile user={user} />
 
-                    {/* ——— Formulario de ejercicios ——— */}
-                    <form className="exercise-form">
-                        <select
-                            name="day"
-                            value={selectedDay}
-                            onChange={(e) => setSelectedDay(e.target.value as DayOfWeek)}
-                        >
-                            <option value="Lunes">Lunes</option>
-                            <option value="Martes">Martes</option>
-                            <option value="Miércoles">Miércoles</option>
-                            <option value="Jueves">Jueves</option>
-                            <option value="Viernes">Viernes</option>
-                            <option value="Sábado">Sábado</option>
-                            <option value="Domingo">Domingo</option>
-                        </select>
+                    <ExerciseForm
+                        selectedDay={selectedDay}
+                        exerciseType={exerciseType}
+                        formData={formData}
+                        onDayChange={setSelectedDay}
+                        onTypeChange={handleTypeChange}
+                        onFormDataChange={setFormData}
+                        onAddExercise={handleAddExercise}
+                    />
 
-                        <input
-                            type="text"
-                            name="name"
-                            placeholder="Nombre del ejercicio"
-                            value={newExercise.name}
-                            onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
-                            required
-                        />
-
-                        <input
-                            type="number"
-                            name="time"
-                            placeholder="Duración (minutos)"
-                            value={newExercise.time || ""}
-                            onChange={(e) => setNewExercise({ ...newExercise, time: Number(e.target.value) })}
-                            required
-                        />
-
-                        <input
-                            type="number"
-                            name="caloriesBurned"
-                            placeholder="Calorías por minuto"
-                            value={newExercise.caloriesBurned || ""}
-                            onChange={(e) => setNewExercise({ ...newExercise, caloriesBurned: Number(e.target.value) })}
-                            required
-                        />
-
-                        <input
-                            type="number"
-                            name="distance"
-                            placeholder="Distancia (km, opcional)"
-                            value={newExercise.distance ?? ""}
-                            onChange={(e) => setNewExercise({ ...newExercise, distance: e.target.value ? Number(e.target.value) : undefined })}
-                        />
-
-                        <button type="button" onClick={handleAddExercise}>
-                            Agregar ejercicio
-                        </button>
-                    </form>
-
-                    {/* ——— Lista de ejercicios agregados por día ——— */}
                     {routineEntries.length > 0 && (
-                        <section className="exercise-summary">
-                            <h3>Tu rutina semanal</h3>
-                            <p className="total-calories">
-                                <strong>🔥 Total de calorías:</strong>{" "}
-                                {totalCalories} cal
-                                {" — "}
-                                <strong>Promedio x día:</strong>{" "}
-                                {calculateAverageCaloriesPerWorkoutDay(routineEntries)} cal
-                                {" — "}
-                                <strong>Día con más calorías:</strong>{" "}
-                                {findHighestCalorieDay(routineEntries) ?? "—"}
-                                {" — "}
-                                <strong>Duración total:</strong>{" "}
-                                {formatDuration(totalDuration)}
-                            </p>
-
-                            <div className="exercise-stats">
-                                <p>
-                                    <strong>🏋️ Ejercicio más largo:</strong>{" "}
-                                    {longestExercise
-                                        ? `${longestExercise.name} (${formatDuration(longestExercise.time)})`
-                                        : "—"}
-                                    {" | "}
-                                    <strong>🔥 Ejercicio más intenso:</strong>{" "}
-                                    {highestCalorieExercise
-                                        ? `${highestCalorieExercise.name} (${calculateCalories(highestCalorieExercise)} cal)`
-                                        : "—"}
-                                </p>
-                            </div>
-                            {routineEntries.map((entry) => (
-                                <div key={entry.day} className="day-block">
-                                    <h4>{entry.day}</h4>
-                                    <ul>
-                                        {entry.exercises.map((ex, exIndex) => {
-                                            const pace = calculatePace(ex);
-                                            return (
-                                                <li key={exIndex}>
-                                                    <strong>{ex.name}</strong> —{" "}
-                                                    {formatDuration(ex.time)},{" "}
-                                                    {calculateCalories(ex)} cal
-                                                    {" ("}
-                                                    {calculatePercentageOfTotal(ex, totalCalories)}
-                                                    {"%)"}
-                                                    {ex.distance !== undefined && (
-                                                        <> — {ex.distance}km{pace !== null && ` (${pace} min/km)`}</>
-                                                    )}
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            ))}
-                        </section>
+                        <ExerciseSummary
+                            routineEntries={routineEntries}
+                            totalCalories={totalCalories}
+                            totalDuration={totalDuration}
+                            longestExercise={longestExercise}
+                            highestCalorieExercise={highestCalorieExercise}
+                        />
                     )}
                 </>
             )}
