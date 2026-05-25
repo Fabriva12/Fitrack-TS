@@ -1,3 +1,8 @@
+// ─── Branded IDs ───
+export type ExerciseId = string;
+export type UserId = string;
+export type RoutineId = string;
+
 // ─── Cardio ───
 // El usuario ingresa estos campos; pace se calcula automáticamente
 export interface CardioFormData {
@@ -10,12 +15,14 @@ export interface CardioFormData {
 }
 
 export interface CardioExercise extends CardioFormData {
+    id: ExerciseId;
     pace: number;
 }
 
 // ─── Strength ───
 export interface StrengthExercise {
     type: 'strength';
+    id: ExerciseId;
     name: string;
     time: number;
     caloriesBurned: number;
@@ -27,6 +34,7 @@ export interface StrengthExercise {
 // ─── Flexibility ───
 export interface FlexibilityExercise {
     type: 'flexibility';
+    id: ExerciseId;
     name: string;
     time: number;
     caloriesBurned: number;
@@ -49,6 +57,7 @@ export interface DayPlan {
 }
 
 export interface WeeklyPlan {
+    id: RoutineId;
     name: string;
     entries: DayPlan[];
 }
@@ -62,12 +71,13 @@ export interface PersonalInfo {
 
 // ─── Membership ───
 export interface Membership {
-    plan: string;
+    plan: "mensual" | "trimestral" | "anual";
     startDate: string;
     isActive: boolean;
 }
 
 // ─── User: combina PersonalInfo + Membership + datos propios ───
 export interface User extends PersonalInfo, Membership {
+    id: UserId;
     routine: WeeklyPlan | null;
 }

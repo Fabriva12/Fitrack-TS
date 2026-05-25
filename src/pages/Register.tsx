@@ -19,6 +19,7 @@ import RegistrationForm from "../components/RegistrationForm";
 import UserProfile from "../components/UserProfile";
 import ExerciseForm from "../components/ExerciseForm";
 import ExerciseSummary from "../components/ExerciseSummary";
+import { DEMO_USER, DEMO_ROUTINE } from "../data/demo";
 
 export default function Register() {
     const [step, setStep] = useState(1);
@@ -36,11 +37,13 @@ export default function Register() {
     });
 
     const defaultStrengthForm = (): StrengthExercise => ({
+        id: crypto.randomUUID(),
         type: 'strength', name: '', time: 0, caloriesBurned: 0,
         sets: 0, reps: 0, weight: 0,
     });
 
     const defaultFlexibilityForm = (): FlexibilityExercise => ({
+        id: crypto.randomUUID(),
         type: 'flexibility', name: '', time: 0, caloriesBurned: 0,
         poses: 0,
     });
@@ -58,8 +61,9 @@ export default function Register() {
 
     // ─── Usuario ───
     const [user, setUser] = useState<User>({
+        id: crypto.randomUUID(),
         name: "", age: 0, experienceLevel: "beginner",
-        plan: "", startDate: "", isActive: true,
+        plan: "mensual", startDate: "", isActive: true,
         routine: null,
     });
 
@@ -68,7 +72,7 @@ export default function Register() {
         if (routineEntries.length === 0) return;
         setUser((prev) => ({
             ...prev,
-            routine: { name: "Mi rutina semanal", entries: routineEntries },
+            routine: { id: crypto.randomUUID(), name: "Mi rutina semanal", entries: routineEntries },
         }));
     }, [routineEntries]);
 
@@ -105,6 +109,13 @@ export default function Register() {
         setStep(2);
     };
 
+    // ─── Cargar demo ───
+    const loadDemo = () => {
+        setUser({ ...DEMO_USER, routine: null });
+        setRoutineEntries(DEMO_ROUTINE);
+        setStep(2);
+    };
+
     // ─── Handler de agregar ejercicio ───
     const handleAddExercise = () => {
         if (!formData.name.trim() || formData.time <= 0 || formData.caloriesBurned <= 0) {
@@ -118,9 +129,10 @@ export default function Register() {
             case 'cardio': {
                 const cardioForm = formData as CardioFormData;
                 exercise = {
+                    id: crypto.randomUUID(),
                     ...cardioForm,
                     pace: calculatePace(cardioForm.time, cardioForm.distance),
-                } satisfies CardioExercise;
+                } as CardioExercise;
                 break;
             }
             case 'strength': {
@@ -168,11 +180,16 @@ export default function Register() {
     return (
         <div className="register-container">
             {step === 1 && (
-                <RegistrationForm
-                    user={user}
-                    onChange={handleChange}
-                    onSubmit={handleSubmit}
-                />
+                <>
+                    <RegistrationForm
+                        user={user}
+                        onChange={handleChange}
+                        onSubmit={handleSubmit}
+                    />
+                    <button type="button" className="btn-demo" onClick={loadDemo}>
+                        ⚡ Cargar demo
+                    </button>
+                </>
             )}
 
             {step === 2 && (

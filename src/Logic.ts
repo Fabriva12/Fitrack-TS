@@ -1,7 +1,6 @@
 import type { Exercise, DayPlan, DayOfWeek } from "./Types";
 
 export function calculateCalories(exercise: Exercise): number {
-    // time y caloriesBurned existen en TODOS los tipos de la unión
     return exercise.time * exercise.caloriesBurned;
 }
 
@@ -97,4 +96,15 @@ export function calculatePercentageOfTotal(exercise: Exercise, totalCalories: nu
         return 0;
     }
     return Math.round((calculateCalories(exercise) / totalCalories) * 100);
+}
+
+export function getExerciseDescription(exercise: Exercise): string {
+    switch (exercise.type) {
+        case 'cardio':
+            return `${exercise.distance}km (ritmo ${exercise.pace} min/km, ${exercise.heartRateZone})`;
+        case 'strength':
+            return `${exercise.sets} series x ${exercise.reps} reps @ ${exercise.weight}kg`;
+        case 'flexibility':
+            return `🧘 ${exercise.poses} poses`;
+    }
 }

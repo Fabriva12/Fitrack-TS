@@ -3,12 +3,10 @@ import type {
     DayOfWeek,
     Exercise,
     CardioFormData,
-    CardioExercise,
     StrengthExercise,
     FlexibilityExercise,
     ExerciseForm,
 } from "../Types";
-import { calculatePace } from "../Logic";
 
 interface Props {
     selectedDay: DayOfWeek;

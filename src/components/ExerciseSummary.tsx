@@ -5,6 +5,7 @@ import {
     calculateAverageCaloriesPerWorkoutDay,
     findHighestCalorieDay,
     formatDuration,
+    getExerciseDescription,
 } from "../Logic";
 
 interface Props {
@@ -15,6 +16,41 @@ interface Props {
     highestCalorieExercise: Exercise | null;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+    cardio: "Cardio",
+    strength: "Fuerza",
+    flexibilidad: "Flexibilidad",
+};
+
+const CATEGORY_ORDER = ["cardio", "strength", "flexibilidad"];
+
+interface CatalogTotals {
+    exercises: number;
+    minutes: number;
+    calories: number;
+}
+
+type Grouped = Record<string, Exercise[]>;
+
+function buildCatalog(entries: DayPlan[]): { grouped: Grouped; totals: CatalogTotals } {
+    const grouped: Grouped = {};
+    const totals: CatalogTotals = { exercises: 0, minutes: 0, calories: 0 };
+
+    for (const entry of entries) {
+        for (const ex of entry.exercises) {
+            const key = ex.type === "flexibility" ? "flexibilidad" : ex.type;
+            if (!grouped[key]) grouped[key] = [];
+
+            grouped[key].push(ex);
+            totals.exercises += 1;
+            totals.minutes += ex.time;
+            totals.calories += calculateCalories(ex);
+        }
+    }
+
+    return { grouped, totals };
+}
+
 export default function ExerciseSummary({
     routineEntries,
     totalCalories,
@@ -22,6 +58,8 @@ export default function ExerciseSummary({
     longestExercise,
     highestCalorieExercise,
 }: Props) {
+    const { grouped, totals } = buildCatalog(routineEntries);
+
     return (
         <section className="exercise-summary">
             <h3>Tu rutina semanal</h3>
@@ -52,34 +90,39 @@ export default function ExerciseSummary({
                 </p>
             </div>
 
-            {routineEntries.map((entry) => (
-                <div key={entry.day} className="day-block">
-                    <h4>{entry.day}</h4>
-                    <ul>
-                        {entry.exercises.map((ex, exIndex) => (
-                            <li key={exIndex}>
-                                <strong>{ex.name}</strong> —{" "}
-                                {formatDuration(ex.time)},{" "}
-                                {calculateCalories(ex)} cal
-                                {" ("}
-                                {calculatePercentageOfTotal(ex, totalCalories)}
-                                {"%)"}
+            {CATEGORY_ORDER.map((key) => {
+                const exercises = grouped[key];
+                if (!exercises) return null;
 
-                                {/* Type narrowing: cada tipo muestra sus props específicas */}
-                                {ex.type === 'cardio' && (
-                                    <> — {ex.distance}km (ritmo {ex.pace} min/km, {ex.heartRateZone})</>
-                                )}
-                                {ex.type === 'strength' && (
-                                    <> — {ex.sets} series x {ex.reps} reps @ {ex.weight}kg</>
-                                )}
-                                {ex.type === 'flexibility' && (
-                                    <> — 🧘 {ex.poses} poses</>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            ))}
+                const cal = exercises.reduce((s, ex) => s + calculateCalories(ex), 0);
+                const dur = exercises.reduce((s, ex) => s + ex.time, 0);
+
+                return (
+                    <div key={key} className="category-block">
+                        <h4>
+                            {CATEGORY_LABELS[key]} ({exercises.length} ejercicios — {formatDuration(dur)} — {cal} cal)
+                        </h4>
+                        <ul>
+                            {exercises.map((ex, i) => (
+                                <li key={i}>
+                                    <strong>{ex.name}</strong> —{" "}
+                                    {formatDuration(ex.time)},{" "}
+                                    {calculateCalories(ex)} cal
+                                    {" ("}
+                                    {calculatePercentageOfTotal(ex, totalCalories)}
+                                    {"%)"}
+
+                                    — {getExerciseDescription(ex)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                );
+            })}
+
+            <div className="catalog-totals">
+                <strong>Totales del catálogo:</strong> {totals.exercises} ejercicios — {formatDuration(totals.minutes)} — {totals.calories} cal
+            </div>
         </section>
     );
 }

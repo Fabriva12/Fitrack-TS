@@ -13,12 +13,12 @@ export default function UserProfile({ user }: Props) {
     return (
         <section className="user-profile">
             <h3>Tu perfil</h3>
-            <p><strong>Nombre:</strong> {user.name}</p>
-            <p><strong>Edad:</strong> {user.age} años</p>
-            <p><strong>Nivel:</strong> {levelLabel}</p>
-            <p><strong>Plan:</strong> {user.plan}</p>
-            <p><strong>Fecha de inicio:</strong> {user.startDate}</p>
-            <p><strong>Estado:</strong> {user.isActive ? 'Activo' : 'Inactivo'}</p>
+            <p>
+                {user.name} — {user.age} años — Nivel {levelLabel}
+                <br />
+                {user.plan} — Inicio {user.startDate} —{" "}
+                {user.isActive ? "Activo" : "Inactivo"}
+            </p>
         </section>
     );
 }
