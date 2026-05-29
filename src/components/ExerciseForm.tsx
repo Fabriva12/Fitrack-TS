@@ -2,28 +2,25 @@ import type { Dispatch, SetStateAction } from "react";
 import type {
     DayOfWeek,
     Exercise,
-    CardioFormData,
-    StrengthExercise,
-    FlexibilityExercise,
     ExerciseForm,
 } from "../Types";
 
 interface Props {
     selectedDay: DayOfWeek;
-    exerciseType: Exercise['type'];
+    exerciseCategory: Exercise['category'];
     formData: ExerciseForm;
     onDayChange: (day: DayOfWeek) => void;
-    onTypeChange: (type: Exercise['type']) => void;
+    onCategoryChange: (category: Exercise['category']) => void;
     onFormDataChange: Dispatch<SetStateAction<ExerciseForm>>;
     onAddExercise: () => void;
 }
 
 export default function ExerciseForm({
     selectedDay,
-    exerciseType,
+    exerciseCategory,
     formData,
     onDayChange,
-    onTypeChange,
+    onCategoryChange,
     onFormDataChange,
     onAddExercise,
 }: Props) {
@@ -33,7 +30,6 @@ export default function ExerciseForm({
 
     return (
         <form className="exercise-form">
-            {/* Día de la semana */}
             <select
                 value={selectedDay}
                 onChange={(e) => onDayChange(e.target.value as DayOfWeek)}
@@ -47,17 +43,15 @@ export default function ExerciseForm({
                 <option value="Domingo">Domingo</option>
             </select>
 
-            {/* Tipo de ejercicio */}
             <select
-                value={exerciseType}
-                onChange={(e) => onTypeChange(e.target.value as Exercise['type'])}
+                value={exerciseCategory}
+                onChange={(e) => onCategoryChange(e.target.value as Exercise['category'])}
             >
                 <option value="cardio">Cardio</option>
                 <option value="strength">Fuerza</option>
                 <option value="flexibility">Flexibilidad</option>
             </select>
 
-            {/* Campos comunes a TODOS los tipos */}
             <input
                 type="text"
                 placeholder="Nombre del ejercicio"
@@ -69,66 +63,37 @@ export default function ExerciseForm({
             <input
                 type="number"
                 placeholder="Duración (minutos)"
-                value={formData.time || ""}
-                onChange={(e) => updateField('time', Number(e.target.value))}
+                value={formData.duration || ""}
+                onChange={(e) => updateField('duration', Number(e.target.value))}
                 required
             />
 
-            <input
-                type="number"
-                placeholder="Calorías por minuto"
-                value={formData.caloriesBurned || ""}
-                onChange={(e) => updateField('caloriesBurned', Number(e.target.value))}
-                required
-            />
-
-            {/* ─── Campos específicos por tipo ─── */}
-            {exerciseType === 'cardio' && (
-                <>
-                    <input
-                        type="number"
-                        placeholder="Distancia (km)"
-                        value={(formData as CardioFormData).distance || ""}
-                        onChange={(e) => updateField('distance', Number(e.target.value))}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Zona de frecuencia cardíaca (ej: Z2, Z3, Z4)"
-                        value={(formData as CardioFormData).heartRateZone}
-                        onChange={(e) => updateField('heartRateZone', e.target.value)}
-                    />
-                </>
-            )}
-
-            {exerciseType === 'strength' && (
-                <>
-                    <input
-                        type="number"
-                        placeholder="Series"
-                        value={(formData as StrengthExercise).sets || ""}
-                        onChange={(e) => updateField('sets', Number(e.target.value))}
-                    />
-                    <input
-                        type="number"
-                        placeholder="Repeticiones por serie"
-                        value={(formData as StrengthExercise).reps || ""}
-                        onChange={(e) => updateField('reps', Number(e.target.value))}
-                    />
-                    <input
-                        type="number"
-                        placeholder="Peso (kg)"
-                        value={(formData as StrengthExercise).weight || ""}
-                        onChange={(e) => updateField('weight', Number(e.target.value))}
-                    />
-                </>
-            )}
-
-            {exerciseType === 'flexibility' && (
+            {exerciseCategory === 'cardio' && (
                 <input
                     type="number"
-                    placeholder="Poses / posiciones"
-                    value={(formData as FlexibilityExercise).poses || ""}
-                    onChange={(e) => updateField('poses', Number(e.target.value))}
+                    placeholder="Calorías quemadas"
+                    value={(formData as Extract<ExerciseForm, { category: 'cardio' }>).caloriesBurned || ""}
+                    onChange={(e) => updateField('caloriesBurned', Number(e.target.value))}
+                    required
+                />
+            )}
+
+            {exerciseCategory === 'strength' && (
+                <input
+                    type="number"
+                    placeholder="Peso levantado (kg)"
+                    value={(formData as Extract<ExerciseForm, { category: 'strength' }>).weight || ""}
+                    onChange={(e) => updateField('weight', Number(e.target.value))}
+                    required
+                />
+            )}
+
+            {exerciseCategory === 'flexibility' && (
+                <input
+                    type="text"
+                    placeholder="Comentarios (ej: tipo de estiramiento)"
+                    value={(formData as Extract<ExerciseForm, { category: 'flexibility' }>).comments}
+                    onChange={(e) => updateField('comments', e.target.value)}
                 />
             )}
 

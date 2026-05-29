@@ -1,110 +1,151 @@
-import type { Exercise, DayPlan, DayOfWeek } from "./Types";
+import type {
+    Exercise,
+    DaySession,
+    WeeklyLoad,
+    RestRecommendation,
+    RestLevel,
+} from "./Types";
 
 export function calculateCalories(exercise: Exercise): number {
-    return exercise.time * exercise.caloriesBurned;
-}
-
-export function calculatePace(time: number, distance: number): number {
-    if (distance === 0) return 0;
-    return Math.round((time / distance) * 100) / 100;
-}
-
-export function calculateRoutineTotalCalories(entries: DayPlan[]): number {
-    let total: number = 0;
-    for (const entry of entries) {
-        for (const exercise of entry.exercises) {
-            total += calculateCalories(exercise);
-        }
+    if (exercise.category === 'cardio') {
+        return exercise.caloriesBurned;
     }
-    return total;
+    return 0;
 }
 
-export function calculateAverageCaloriesPerWorkoutDay(entries: DayPlan[]): number {
-    const daysWithExercise: number = entries.length;
-    if (daysWithExercise === 0) {
-        return 0;
-    }
-    const total: number = calculateRoutineTotalCalories(entries);
-    return Math.round(total / daysWithExercise);
+export function calculateSessionCalories(session: DaySession): number {
+    return session.exercises.reduce((sum, ex) => sum + calculateCalories(ex), 0);
+}
+
+export function calculateSessionDuration(session: DaySession): number {
+    return session.exercises.reduce((sum, ex) => sum + ex.duration, 0);
+}
+
+export function calculateRoutineCalories(sessions: DaySession[]): number {
+    return sessions.reduce((sum, s) => sum + calculateSessionCalories(s), 0);
+}
+
+export function calculateRoutineDuration(sessions: DaySession[]): number {
+    return sessions.reduce((sum, s) => sum + calculateSessionDuration(s), 0);
+}
+
+export function calculateAverageCaloriesPerDay(sessions: DaySession[]): number {
+    if (sessions.length === 0) return 0;
+    return Math.round(calculateRoutineCalories(sessions) / sessions.length);
 }
 
 export function formatDuration(minutes: number): string {
     if (minutes >= 60) {
-        const hours: number = Math.floor(minutes / 60);
-        const remainingMinutes: number = minutes % 60;
-        if (remainingMinutes === 0) {
-            return `${hours}h`;
-        }
-        return `${hours}h ${remainingMinutes}min`;
+        const hours = Math.floor(minutes / 60);
+        const remaining = minutes % 60;
+        return remaining === 0 ? `${hours}h` : `${hours}h ${remaining}min`;
     }
     return `${minutes}min`;
 }
 
-export function findHighestCalorieDay(entries: DayPlan[]): DayOfWeek | null {
-    if (entries.length === 0) {
-        return null;
-    }
-    let highestDay: DayOfWeek = entries[0].day;
-    let highestCalories: number = calculateRoutineTotalCalories([entries[0]]);
-    for (const entry of entries) {
-        const calories: number = calculateRoutineTotalCalories([entry]);
-        if (calories > highestCalories) {
-            highestCalories = calories;
-            highestDay = entry.day;
-        }
-    }
-    return highestDay;
-}
-
-export function findLongestExercise(entries: DayPlan[]): Exercise | null {
-    if (entries.length === 0) {
-        return null;
-    }
-
+export function findLongestExercise(sessions: DaySession[]): Exercise | null {
     let longest: Exercise | null = null;
-    for (const entry of entries) {
-        for (const exercise of entry.exercises) {
-            if (!longest || exercise.time > longest.time) {
-                longest = exercise;
+    for (const session of sessions) {
+        for (const ex of session.exercises) {
+            if (!longest || ex.duration > longest.duration) {
+                longest = ex;
             }
         }
     }
     return longest;
 }
 
-export function findHighestCalorieExercise(entries: DayPlan[]): Exercise | null {
-    if (entries.length === 0) {
-        return null;
-    }
-
+export function findHighestCalorieExercise(sessions: DaySession[]): Exercise | null {
     let highest: Exercise | null = null;
-    let highestCalories: number = 0;
-    for (const entry of entries) {
-        for (const exercise of entry.exercises) {
-            const calories: number = calculateCalories(exercise);
-            if (!highest || calories > highestCalories) {
-                highestCalories = calories;
-                highest = exercise;
+    let maxCalories = 0;
+    for (const session of sessions) {
+        for (const ex of session.exercises) {
+            const cal = calculateCalories(ex);
+            if (!highest || cal > maxCalories) {
+                maxCalories = cal;
+                highest = ex;
             }
         }
     }
     return highest;
 }
 
-export function calculatePercentageOfTotal(exercise: Exercise, totalCalories: number): number {
-    if (totalCalories === 0) {
-        return 0;
-    }
-    return Math.round((calculateCalories(exercise) / totalCalories) * 100);
+export function calculatePercentageOfTotal(calories: number, totalCalories: number): number {
+    if (totalCalories === 0) return 0;
+    return Math.round((calories / totalCalories) * 100);
 }
 
 export function getExerciseDescription(exercise: Exercise): string {
-    switch (exercise.type) {
+    switch (exercise.category) {
         case 'cardio':
-            return `${exercise.distance}km (ritmo ${exercise.pace} min/km, ${exercise.heartRateZone})`;
+            return `${exercise.caloriesBurned} cal quemadas`;
         case 'strength':
-            return `${exercise.sets} series x ${exercise.reps} reps @ ${exercise.weight}kg`;
+            return `${exercise.weight}kg levantados`;
         case 'flexibility':
-            return `🧘 ${exercise.poses} poses`;
+            return exercise.comments || 'Sin comentarios';
     }
+}
+
+export function calculateWeeklyLoad(sessions: DaySession[]): WeeklyLoad {
+    let totalCalories = 0;
+    let cardioMinutes = 0;
+    let strengthMinutes = 0;
+    let flexibilityMinutes = 0;
+
+    for (const session of sessions) {
+        for (const ex of session.exercises) {
+            switch (ex.category) {
+                case 'cardio': {
+                    cardioMinutes += ex.duration;
+                    totalCalories += ex.caloriesBurned;
+                    break;
+                }
+                case 'strength': {
+                    strengthMinutes += ex.duration;
+                    break;
+                }
+                case 'flexibility': {
+                    flexibilityMinutes += ex.duration;
+                    break;
+                }
+            }
+        }
+    }
+
+    const totalMinutes = cardioMinutes + strengthMinutes + flexibilityMinutes;
+
+    return {
+        totalMinutes,
+        totalCalories,
+        cardioMinutes,
+        strengthMinutes,
+        flexibilityMinutes,
+    };
+}
+
+export function calculateRestRecommendation(sessions: DaySession[]): RestRecommendation {
+    const trainingDays = sessions.length;
+    const totalMinutes = sessions.reduce(
+        (sum, s) => sum + s.exercises.reduce((acc, ex) => acc + ex.duration, 0),
+        0,
+    );
+
+    const trainsTooMuch = trainingDays > 5 || totalMinutes > 300;
+    const trainsTooLittle = trainingDays < 3 || totalMinutes < 150;
+
+    let level: RestLevel;
+    let message: string;
+
+    if (trainsTooMuch) {
+        level = 'high';
+        message = 'Entrenás mucho. Considerá agregar más días de descanso para evitar sobreentrenamiento.';
+    } else if (trainsTooLittle) {
+        level = 'low';
+        message = 'Entrenás poco. Aumentá la frecuencia o duración de tus sesiones para ver mejores resultados.';
+    } else {
+        level = 'moderate';
+        message = 'Tu carga de entrenamiento está en un rango saludable. Seguí así.';
+    }
+
+    return { level, message, trainsTooMuch, trainsTooLittle };
 }

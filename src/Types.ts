@@ -1,83 +1,106 @@
-// ─── Branded IDs ───
 export type ExerciseId = string;
 export type UserId = string;
+export type InstructorId = string;
 export type RoutineId = string;
-
-// ─── Cardio ───
-// El usuario ingresa estos campos; pace se calcula automáticamente
-export interface CardioFormData {
-    type: 'cardio';
-    name: string;
-    time: number;
-    caloriesBurned: number;
-    distance: number;
-    heartRateZone: string;
-}
-
-export interface CardioExercise extends CardioFormData {
-    id: ExerciseId;
-    pace: number;
-}
-
-// ─── Strength ───
-export interface StrengthExercise {
-    type: 'strength';
-    id: ExerciseId;
-    name: string;
-    time: number;
-    caloriesBurned: number;
-    sets: number;
-    reps: number;
-    weight: number;
-}
-
-// ─── Flexibility ───
-export interface FlexibilityExercise {
-    type: 'flexibility';
-    id: ExerciseId;
-    name: string;
-    time: number;
-    caloriesBurned: number;
-    poses: number;
-}
-
-// ─── Unión discriminada ───
-// Exercise es la unión de los tres tipos. TypeScript NO te deja
-// acceder a exercise.sets si exercise.type !== 'strength'
-export type Exercise = CardioExercise | StrengthExercise | FlexibilityExercise;
-
-// Tipo para el formulario (sin pace, se calcula al agregar)
-export type ExerciseForm = CardioFormData | StrengthExercise | FlexibilityExercise;
+export type SessionId = string;
 
 export type DayOfWeek = "Lunes" | "Martes" | "Miércoles" | "Jueves" | "Viernes" | "Sábado" | "Domingo";
 
-export interface DayPlan {
-    day: DayOfWeek;
-    exercises: Exercise[];
-}
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 
-export interface WeeklyPlan {
-    id: RoutineId;
-    name: string;
-    entries: DayPlan[];
-}
+export type ExerciseCategory = 'cardio' | 'strength' | 'flexibility';
 
-// ─── Personal Info ───
-export interface PersonalInfo {
+export type RestLevel = 'low' | 'moderate' | 'high';
+
+export interface Person {
     name: string;
     age: number;
-    experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+    email: string;
 }
 
-// ─── Membership ───
-export interface Membership {
-    plan: "mensual" | "trimestral" | "anual";
+interface ExerciseBase {
+    id: ExerciseId;
+    name: string;
+    duration: number;
+    completed: boolean;
+}
+
+export interface CardioExercise extends ExerciseBase {
+    category: 'cardio';
+    caloriesBurned: number;
+}
+
+export interface StrengthExercise extends ExerciseBase {
+    category: 'strength';
+    weight: number;
+}
+
+export interface FlexibilityExercise extends ExerciseBase {
+    category: 'flexibility';
+    comments: string;
+}
+
+export type Exercise = CardioExercise | StrengthExercise | FlexibilityExercise;
+
+export interface CardioForm {
+    category: 'cardio';
+    name: string;
+    duration: number;
+    caloriesBurned: number;
+}
+
+export interface StrengthForm {
+    category: 'strength';
+    name: string;
+    duration: number;
+    weight: number;
+}
+
+export interface FlexibilityForm {
+    category: 'flexibility';
+    name: string;
+    duration: number;
+    comments: string;
+}
+
+export type ExerciseForm = CardioForm | StrengthForm | FlexibilityForm;
+
+export interface DaySession {
+    id: SessionId;
+    day: DayOfWeek;
+    exercises: Exercise[];
+    notes?: string;
+}
+
+export interface WeeklyRoutine {
+    id: RoutineId;
+    name: string;
     startDate: string;
-    isActive: boolean;
+    sessions: DaySession[];
 }
 
-// ─── User: combina PersonalInfo + Membership + datos propios ───
-export interface User extends PersonalInfo, Membership {
+export interface User extends Person {
     id: UserId;
-    routine: WeeklyPlan | null;
+    experienceLevel: ExperienceLevel;
+    routine: WeeklyRoutine | null;
+}
+
+export interface Instructor extends Person {
+    id: InstructorId;
+    assignedUsers: UserId[];
+}
+
+export interface WeeklyLoad {
+    totalMinutes: number;
+    totalCalories: number;
+    cardioMinutes: number;
+    strengthMinutes: number;
+    flexibilityMinutes: number;
+}
+
+export interface RestRecommendation {
+    level: RestLevel;
+    message: string;
+    trainsTooMuch: boolean;
+    trainsTooLittle: boolean;
 }

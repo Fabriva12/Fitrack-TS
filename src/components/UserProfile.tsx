@@ -14,10 +14,9 @@ export default function UserProfile({ user }: Props) {
         <section className="user-profile">
             <h3>Tu perfil</h3>
             <p>
-                {user.name} — {user.age} años — Nivel {levelLabel}
+                {user.name} — {user.age} años — {user.email}
                 <br />
-                {user.plan} — Inicio {user.startDate} —{" "}
-                {user.isActive ? "Activo" : "Inactivo"}
+                Nivel {levelLabel}
             </p>
         </section>
     );
