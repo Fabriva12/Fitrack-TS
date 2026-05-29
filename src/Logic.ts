@@ -4,11 +4,9 @@ export function calculateCalories(exercise: Exercise): number {
     return exercise.time * exercise.caloriesBurned;
 }
 
-export function calculatePace(exercise: Exercise): number | null {
-    if (exercise.distance === undefined || exercise.distance === 0) {
-        return null;
-    }
-    return Math.round((exercise.time / exercise.distance) * 100) / 100;
+export function calculatePace(time: number, distance: number): number {
+    if (distance === 0) return 0;
+    return Math.round((time / distance) * 100) / 100;
 }
 
 export function calculateRoutineTotalCalories(entries: DayPlan[]): number {
@@ -98,4 +96,15 @@ export function calculatePercentageOfTotal(exercise: Exercise, totalCalories: nu
         return 0;
     }
     return Math.round((calculateCalories(exercise) / totalCalories) * 100);
+}
+
+export function getExerciseDescription(exercise: Exercise): string {
+    switch (exercise.type) {
+        case 'cardio':
+            return `${exercise.distance}km (ritmo ${exercise.pace} min/km, ${exercise.heartRateZone})`;
+        case 'strength':
+            return `${exercise.sets} series x ${exercise.reps} reps @ ${exercise.weight}kg`;
+        case 'flexibility':
+            return `🧘 ${exercise.poses} poses`;
+    }
 }
