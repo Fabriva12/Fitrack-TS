@@ -10,10 +10,15 @@ import type {
 import { EXERCISE_CATALOG } from "../data/catalog";
 import type { CatalogItem } from "../data/catalog";
 import {
+    calculateAverageCaloriesPerDay,
+    calculateCalories,
     calculateSessionDuration,
     calculateWeeklyLoad,
     calculateRestRecommendation,
+    findHighestCalorieExercise,
+    findLongestExercise,
     formatDuration,
+    getExerciseDescription,
 } from "../Logic";
 
 interface WeekViewProps {
@@ -148,14 +153,36 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
 
     const load = calculateWeeklyLoad(sessions);
     const reco = calculateRestRecommendation(sessions);
+    const longestExercise = findLongestExercise(sessions);
+    const highestCalorieExercise = findHighestCalorieExercise(sessions);
 
     return (
         <section className="week-view">
             <div className="week-stats">
                 <span className="stat"><strong>Total:</strong> {formatDuration(load.totalMinutes)}</span>
-                <span className="stat"><strong>Calorías:</strong> {load.totalCalories} cal</span>
-                <span className="stat"><strong>Días activos:</strong> {sessions.length}/7</span>
+                <span className="stat">
+                    <strong>Calorías:</strong> {load.totalCalories} cal
+                    {sessions.length > 0 && (
+                        <> | <strong>Promedio:</strong> {calculateAverageCaloriesPerDay(sessions)} cal ({sessions.length} día{sessions.length !== 1 ? 's' : ''} entrenados)</>
+                    )}
+                </span>
             </div>
+
+            {sessions.length > 0 && (
+                <div className="exercise-stats">
+                    <p>
+                        <strong>Ejercicio más largo:</strong>{' '}
+                        {longestExercise
+                            ? `${longestExercise.name} (${formatDuration(longestExercise.duration)})`
+                            : '—'}
+                        {' | '}
+                        <strong>Ejercicio más intenso:</strong>{' '}
+                        {highestCalorieExercise
+                            ? `${highestCalorieExercise.name} (${calculateCalories(highestCalorieExercise)} cal)`
+                            : '—'}
+                    </p>
+                </div>
+            )}
 
             {sessions.length > 0 && (
                 <div className="week-load-detailed">
@@ -221,22 +248,31 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                                 {day}
                                 {session && (
                                     <small className="day-stats">
-                                        {dayDuration}min · {completedCount}/{session.exercises.length}
+                                        {dayDuration} min · {completedCount}/{session.exercises.length}
                                     </small>
                                 )}
                             </h4>
                             <div className="day-exercises">
                                 {session ? (
                                     session.exercises.map(ex => (
-                                        <label key={ex.id} className={`exercise-item ${ex.completed ? 'done' : ''}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={ex.completed}
-                                                onChange={() => handleToggleCompleted(session.id, ex.id)}
-                                            />
-                                            <span className="ex-name">{ex.name}</span>
-                                            <span className="ex-duration">{ex.duration}min</span>
-                                        </label>
+                                        <div key={ex.id} className={`exercise-item ${ex.completed ? 'done' : ''}`}>
+                                            <div className="ex-row">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={ex.completed}
+                                                    onChange={() => handleToggleCompleted(session.id, ex.id)}
+                                                />
+                                                <span className="ex-name">{ex.name}</span>
+                                                <span className="ex-status">{ex.completed ? '✅' : '❌'}</span>
+                                            </div>
+                                            <div className="ex-details">
+                                                <span className={`ex-category cat-${ex.category}`}>
+                                                    {CATEGORY_LABELS[ex.category]}
+                                                </span>
+                                                <span className="ex-duration">{ex.duration}min</span>
+                                                <span className="ex-desc">{getExerciseDescription(ex)}</span>
+                                            </div>
+                                        </div>
                                     ))
                                 ) : (
                                     <p className="empty-day">Sin ejercicios</p>
