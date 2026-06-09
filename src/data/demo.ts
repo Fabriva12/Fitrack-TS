@@ -1,96 +1,237 @@
-import type { DayPlan, User } from "../Types";
+import type { DaySession, User, Instructor } from "../Types";
 
 export const DEMO_USER: User = {
     id: crypto.randomUUID(),
     name: "Ana García",
     age: 28,
+    email: "ana.garcia@email.com",
     experienceLevel: "intermediate",
-    plan: "mensual",
-    startDate: "2026-05-01",
-    isActive: true,
     routine: null,
 };
 
-export const DEMO_ROUTINE: DayPlan[] = [
+export const DEMO_ROUTINE: DaySession[] = [
     {
+        id: crypto.randomUUID(),
         day: "Lunes",
         exercises: [
             {
                 id: crypto.randomUUID(),
-                type: "cardio",
+                category: "cardio",
                 name: "Running",
-                time: 30,
-                caloriesBurned: 8,
-                distance: 5,
-                heartRateZone: "Z3",
-                pace: 6,
+                duration: 30,
+                completed: false,
+                caloriesBurned: 280,
             },
             {
                 id: crypto.randomUUID(),
-                type: "strength",
+                category: "strength",
                 name: "Bench Press",
-                time: 20,
-                caloriesBurned: 5,
-                sets: 4,
-                reps: 10,
+                duration: 20,
+                completed: false,
                 weight: 60,
             },
         ],
     },
     {
+        id: crypto.randomUUID(),
         day: "Miércoles",
         exercises: [
             {
                 id: crypto.randomUUID(),
-                type: "cardio",
+                category: "cardio",
                 name: "Cycling",
-                time: 45,
-                caloriesBurned: 6,
-                distance: 15,
-                heartRateZone: "Z2",
-                pace: 3,
+                duration: 45,
+                completed: false,
+                caloriesBurned: 360,
             },
             {
                 id: crypto.randomUUID(),
-                type: "strength",
+                category: "strength",
                 name: "Squat",
-                time: 25,
-                caloriesBurned: 7,
-                sets: 4,
-                reps: 8,
+                duration: 25,
+                completed: false,
                 weight: 80,
             },
         ],
     },
     {
+        id: crypto.randomUUID(),
         day: "Viernes",
         exercises: [
             {
                 id: crypto.randomUUID(),
-                type: "flexibility",
+                category: "flexibility",
                 name: "Yoga",
-                time: 40,
-                caloriesBurned: 3,
-                poses: 12,
+                duration: 40,
+                completed: false,
+                comments: "Rutina de estiramientos profundos",
             },
             {
                 id: crypto.randomUUID(),
-                type: "strength",
+                category: "strength",
                 name: "Deadlift",
-                time: 20,
-                caloriesBurned: 6,
-                sets: 3,
-                reps: 6,
+                duration: 20,
+                completed: false,
                 weight: 100,
             },
             {
                 id: crypto.randomUUID(),
-                type: "flexibility",
+                category: "flexibility",
                 name: "Pilates",
-                time: 30,
-                caloriesBurned: 4,
-                poses: 8,
+                duration: 30,
+                completed: false,
+                comments: "Enfoque en core y postura",
             },
         ],
     },
 ];
+
+export function getDemoInstructorData(): { instructor: Instructor; users: User[] } {
+    const anaId = crypto.randomUUID();
+    const pedroId = crypto.randomUUID();
+    const luciaId = crypto.randomUUID();
+
+    const instructor: Instructor = {
+        id: crypto.randomUUID(),
+        name: "Carlos Ruiz",
+        age: 35,
+        email: "carlos.ruiz@fitrack.com",
+        assignedUsers: [anaId, pedroId, luciaId],
+    };
+
+    const users: User[] = [
+        {
+            id: anaId,
+            name: "Ana García",
+            age: 28,
+            email: "ana.garcia@email.com",
+            experienceLevel: "intermediate",
+            routine: {
+                id: crypto.randomUUID(),
+                name: "Mi rutina semanal",
+                startDate: "2026-05-25",
+                sessions: [
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Lunes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "cardio", name: "Running", duration: 30, completed: true, caloriesBurned: 280 },
+                            { id: crypto.randomUUID(), category: "strength", name: "Bench Press", duration: 20, completed: true, weight: 60 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Miércoles",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "cardio", name: "Cycling", duration: 45, completed: false, caloriesBurned: 360 },
+                            { id: crypto.randomUUID(), category: "strength", name: "Squat", duration: 25, completed: false, weight: 80 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Viernes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "flexibility", name: "Yoga", duration: 40, completed: false, comments: "Rutina de estiramientos profundos" },
+                            { id: crypto.randomUUID(), category: "strength", name: "Deadlift", duration: 20, completed: false, weight: 100 },
+                            { id: crypto.randomUUID(), category: "flexibility", name: "Pilates", duration: 30, completed: false, comments: "Enfoque en core y postura" },
+                        ],
+                    },
+                ],
+            },
+        },
+        {
+            id: pedroId,
+            name: "Pedro López",
+            age: 32,
+            email: "pedro.lopez@email.com",
+            experienceLevel: "advanced",
+            routine: {
+                id: crypto.randomUUID(),
+                name: "Rutina intensiva",
+                startDate: "2026-05-25",
+                sessions: [
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Lunes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "strength", name: "Bench Press", duration: 30, completed: true, weight: 100 },
+                            { id: crypto.randomUUID(), category: "strength", name: "Rows", duration: 25, completed: true, weight: 70 },
+                            { id: crypto.randomUUID(), category: "cardio", name: "HIIT", duration: 20, completed: true, caloriesBurned: 350 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Martes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "strength", name: "Squat", duration: 30, completed: true, weight: 120 },
+                            { id: crypto.randomUUID(), category: "strength", name: "Deadlift", duration: 25, completed: true, weight: 140 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Miércoles",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "cardio", name: "Running", duration: 45, completed: true, caloriesBurned: 420 },
+                            { id: crypto.randomUUID(), category: "flexibility", name: "Yoga", duration: 30, completed: false, comments: "Recuperación activa" },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Jueves",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "strength", name: "Shoulder Press", duration: 25, completed: true, weight: 50 },
+                            { id: crypto.randomUUID(), category: "strength", name: "Pull-ups", duration: 20, completed: true, weight: 85 },
+                            { id: crypto.randomUUID(), category: "cardio", name: "Rowing", duration: 25, completed: true, caloriesBurned: 200 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Viernes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "cardio", name: "Swimming", duration: 40, completed: false, caloriesBurned: 400 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Sábado",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "flexibility", name: "Pilates", duration: 45, completed: false, comments: "Core y movilidad" },
+                            { id: crypto.randomUUID(), category: "cardio", name: "Cycling", duration: 60, completed: false, caloriesBurned: 480 },
+                        ],
+                    },
+                ],
+            },
+        },
+        {
+            id: luciaId,
+            name: "Lucía Martínez",
+            age: 24,
+            email: "lucia.martinez@email.com",
+            experienceLevel: "beginner",
+            routine: {
+                id: crypto.randomUUID(),
+                name: "Empezando",
+                startDate: "2026-05-25",
+                sessions: [
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Martes",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "cardio", name: "Walking", duration: 30, completed: true, caloriesBurned: 120 },
+                        ],
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        day: "Jueves",
+                        exercises: [
+                            { id: crypto.randomUUID(), category: "strength", name: "Bicep Curls", duration: 15, completed: false, weight: 8 },
+                            { id: crypto.randomUUID(), category: "flexibility", name: "Stretching", duration: 20, completed: false, comments: "Estiramientos suaves" },
+                        ],
+                    },
+                ],
+            },
+        },
+    ];
+
+    return { instructor, users };
+}

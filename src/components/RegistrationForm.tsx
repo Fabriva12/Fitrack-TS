@@ -10,8 +10,8 @@ interface Props {
 export default function RegistrationForm({ user, onChange, onSubmit }: Props) {
     return (
         <>
-            <h1>Bienvenido a fitrack</h1>
-            <h2>Regístrate para comenzar a planificar tu rutina de ejercicios</h2>
+            <h1>Bienvenido a FitTrack</h1>
+            <h2>Registrate para comenzar a planificar tu rutina de ejercicios</h2>
 
             <form onSubmit={onSubmit}>
                 <input
@@ -32,6 +32,15 @@ export default function RegistrationForm({ user, onChange, onSubmit }: Props) {
                     required
                 />
 
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    value={user.email}
+                    onChange={onChange}
+                    required
+                />
+
                 <select
                     name="experienceLevel"
                     value={user.experienceLevel}
@@ -41,37 +50,6 @@ export default function RegistrationForm({ user, onChange, onSubmit }: Props) {
                     <option value="intermediate">Intermedio</option>
                     <option value="advanced">Avanzado</option>
                 </select>
-
-                {/* ——— Membresía ——— */}
-                <select
-                    name="plan"
-                    value={user.plan}
-                    onChange={onChange}
-                    required
-                >
-                    <option value="" disabled>Seleccioná un plan</option>
-                    <option value="mensual">Mensual</option>
-                    <option value="trimestral">Trimestral</option>
-                    <option value="anual">Anual</option>
-                </select>
-
-                <input
-                    type="date"
-                    name="startDate"
-                    value={user.startDate}
-                    onChange={onChange}
-                    required
-                />
-
-                <label className="checkbox-label">
-                    <input
-                        type="checkbox"
-                        name="isActive"
-                        checked={user.isActive}
-                        onChange={onChange}
-                    />
-                    Membresía activa
-                </label>
 
                 <button type="submit">Registrarse</button>
             </form>
