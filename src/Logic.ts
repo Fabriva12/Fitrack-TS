@@ -1,9 +1,12 @@
 import type {
     Exercise,
+    ExerciseCategory,
     DaySession,
     WeeklyLoad,
     RestRecommendation,
     RestLevel,
+    UnifiedReport,
+    InvalidExercise,
 } from "./Types";
 
 export function calculateCalories(exercise: Exercise): number {
@@ -148,4 +151,38 @@ export function calculateRestRecommendation(sessions: DaySession[]): RestRecomme
     }
 
     return { level, message, trainsTooMuch, trainsTooLittle };
+}
+
+const API_TYPE_MAP: Record<string, ExerciseCategory> = {
+    cardio: "cardio",
+    strength: "strength",
+    powerlifting: "strength",
+    olympic_weightlifting: "strength",
+    strongman: "strength",
+    stretching: "flexibility",
+    plyometrics: "flexibility",
+};
+
+export function mapApiToCategory(apiType: string): ExerciseCategory | null {
+    return API_TYPE_MAP[apiType.toLowerCase()] ?? null;
+}
+
+export function generateUnifiedReport(
+    localExercises: Exercise[],
+    validExternal: Exercise[],
+    invalid: InvalidExercise[],
+): UnifiedReport {
+    const all: Exercise[] = [...localExercises, ...validExternal];
+
+    const byCategory: UnifiedReport["byCategory"] = {};
+
+    for (const ex of all) {
+        const cat = ex.category;
+        if (!byCategory[cat]) {
+            byCategory[cat] = [];
+        }
+        byCategory[cat]!.push(ex);
+    }
+
+    return { byCategory, invalid };
 }

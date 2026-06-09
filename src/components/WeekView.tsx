@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type {
     DaySession,
     Exercise,
@@ -6,6 +6,9 @@ import type {
     ExerciseId,
     SessionId,
     ExerciseForm,
+    WorkoutStatus,
+    UnifiedReport,
+    InvalidExercise,
 } from "../Types";
 import { EXERCISE_CATALOG } from "../data/catalog";
 import type { CatalogItem } from "../data/catalog";
@@ -19,7 +22,9 @@ import {
     findLongestExercise,
     formatDuration,
     getExerciseDescription,
+    generateUnifiedReport,
 } from "../Logic";
+import ExternalSearch from "./ExternalSearch";
 
 interface WeekViewProps {
     sessions: DaySession[];
@@ -55,6 +60,11 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
     const [exerciseCategory, setExerciseCategory] = useState<Exercise['category']>('cardio');
     const [formData, setFormData] = useState<ExerciseForm>(emptyForm('cardio'));
     const [showForm, setShowForm] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [showReport, setShowReport] = useState(false);
+    const [externalExercises, setExternalExercises] = useState<Exercise[]>([]);
+    const [externalInvalid, setExternalInvalid] = useState<InvalidExercise[]>([]);
+    const [workoutStatuses, setWorkoutStatuses] = useState<Record<SessionId, WorkoutStatus>>({});
 
     function getSession(day: DayOfWeek): DaySession | undefined {
         return sessions.find(s => s.day === day);
@@ -79,6 +89,49 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         onUpdateSessions(
             sessions.map(s => (s.id === sessionId ? { ...s, notes } : s)),
         );
+    }
+
+    function toggleWorkoutStatus(sessionId: SessionId) {
+        setWorkoutStatuses(prev => {
+            const current = prev[sessionId] ?? "pending";
+            const next: WorkoutStatus = current === "pending" ? "completed" : "pending";
+            return { ...prev, [sessionId]: next };
+        });
+    }
+
+    function handleAddExternal(exercises: Exercise[]) {
+        const session = getSession(selectedDay);
+        let updatedSessions: DaySession[];
+
+        if (session) {
+            updatedSessions = sessions.map(s =>
+                s.day === selectedDay
+                    ? { ...s, exercises: [...s.exercises, ...exercises] }
+                    : s,
+            );
+        } else {
+            updatedSessions = [
+                ...sessions,
+                { id: crypto.randomUUID(), day: selectedDay, exercises },
+            ];
+        }
+
+        onUpdateSessions(updatedSessions);
+        setExternalExercises(prev => [...prev, ...exercises]);
+        setShowSearch(false);
+    }
+
+    const unifiedReport: UnifiedReport = useMemo(
+        () => generateUnifiedReport(
+            sessions.flatMap(s => s.exercises),
+            externalExercises,
+            externalInvalid,
+        ),
+        [sessions, externalExercises, externalInvalid],
+    );
+
+    function handleSearchResult(_valid: Exercise[], invalid: InvalidExercise[]) {
+        setExternalInvalid(prev => [...prev, ...invalid]);
     }
 
     function openForm(day: DayOfWeek) {
@@ -231,6 +284,96 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                 </div>
             )}
 
+            <div className="action-buttons">
+                <button className="btn-action" onClick={() => setShowSearch(prev => !prev)}>
+                    {showSearch ? "Cerrar búsqueda" : "Buscar en API"}
+                </button>
+                <button className="btn-action" onClick={() => setShowReport(true)}>
+                    Reporte unificado
+                </button>
+            </div>
+
+            {showSearch && (
+                <ExternalSearch
+                    muscleGroups={[
+                        "abdominals", "abductors", "biceps", "calves", "chest",
+                        "forearms", "glutes", "hamstrings", "lats", "lower_back",
+                        "middle_back", "neck", "quadriceps", "traps", "triceps",
+                    ]}
+                    onAddExercises={handleAddExternal}
+                    onSearchResult={handleSearchResult}
+                    sessionDay={selectedDay}
+                />
+            )}
+
+            {showReport && (
+                <div className="modal-overlay" onClick={() => setShowReport(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Reporte unificado</h3>
+                            <button className="btn-close" onClick={() => setShowReport(false)}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="report-summary">
+                                <span className="rs-total">
+                                    Total ejercicios: {
+                                        Object.values(unifiedReport.byCategory).reduce((s, exs) => s + exs.length, 0)
+                                    }
+                                </span>
+                                <span className="rs-local">
+                                    Locales: {sessions.flatMap(s => s.exercises).length}
+                                </span>
+                                <span className="rs-api">
+                                    API: {externalExercises.length}
+                                </span>
+                            </div>
+                            {(['cardio', 'strength', 'flexibility'] as const).map(cat => {
+                                const exercises = unifiedReport.byCategory[cat];
+                                if (!exercises || exercises.length === 0) return null;
+                                const totalMin = exercises.reduce((s, e) => s + e.duration, 0);
+                                const isExternal = (name: string) =>
+                                    externalExercises.some(ex => ex.name === name);
+                                return (
+                                    <div key={cat} className="report-category">
+                                        <h4 className={`${cat}-header`}>{CATEGORY_LABELS[cat]} ({exercises.length})</h4>
+                                        <p className="report-total">{totalMin} min totales</p>
+                                        <ul className="report-list">
+                                            {exercises.map(e => (
+                                                <li key={e.id} className="report-item">
+                                                    <span className="ri-name">{e.name}</span>
+                                                    <span className={`ri-source ${isExternal(e.name) ? 'external' : 'local'}`}>
+                                                        {isExternal(e.name) ? 'API' : 'Local'}
+                                                    </span>
+                                                    <span className="ri-duration">{e.duration}min</span>
+                                                    <span className="ri-desc">{getExerciseDescription(e)}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                            {unifiedReport.invalid.length > 0 && (
+                                <div className="report-invalid">
+                                    <h4>Ejercicios con datos incompletos ({unifiedReport.invalid.length})</h4>
+                                    <ul className="report-invalid-list">
+                                        {unifiedReport.invalid.map((inv, i) => (
+                                            <li key={i} className="report-invalid-item">
+                                                <span className="ri-name">{inv.data.name || "Sin nombre"}</span>
+                                                <span className="ri-reason">{inv.reason}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {unifiedReport.invalid.length === 0 &&
+                                Object.keys(unifiedReport.byCategory).length === 0 && (
+                                <p className="report-empty">No hay ejercicios para mostrar.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="day-grid">
                 {DAYS.map(day => {
                     const session = getSession(day);
@@ -252,6 +395,18 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                                     </small>
                                 )}
                             </h4>
+                            {session && (
+                                <label className="workout-status-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={(workoutStatuses[session.id] ?? "pending") === "completed"}
+                                        onChange={() => toggleWorkoutStatus(session.id)}
+                                    />
+                                    <span className="workout-status-text">
+                                        {(workoutStatuses[session.id] ?? "pending") === "completed" ? "Completado" : "Pendiente"}
+                                    </span>
+                                </label>
+                            )}
                             <div className="day-exercises">
                                 {session ? (
                                     session.exercises.map(ex => (
