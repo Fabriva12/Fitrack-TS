@@ -1,5 +1,3 @@
-import type { ApiNinjaExercise } from "../Types";
-
 const API_BASE = "https://api.api-ninjas.com/v1/exercises";
 
 export class ApiNinjasError extends Error {
@@ -12,10 +10,41 @@ export class ApiNinjasError extends Error {
     }
 }
 
-export async function searchExercisesByMuscle(muscle: string): Promise<ApiNinjaExercise[]> {
-    const apiKey = import.meta.env.VITE_API_NINJAS_KEY as string | undefined;
+interface RawApiItem {
+    name: unknown;
+    type: unknown;
+    instructions: unknown;
+    muscle: unknown;
+    equipment: unknown;
+    difficulty: unknown;
+    [key: string]: unknown;
+}
 
-    if (!apiKey) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
+function isString(value: unknown): value is string {
+    return typeof value === "string";
+}
+
+function isApiItem(value: unknown): value is RawApiItem {
+    return isRecord(value) && "name" in value && "type" in value && "instructions" in value;
+}
+
+function structuralFields(item: RawApiItem): boolean {
+    return isString(item.name) && item.name.trim().length > 0
+        && isString(item.type) && item.type.trim().length > 0
+        && isString(item.instructions) && item.instructions.trim().length > 0
+        && isString(item.muscle)
+        && isString(item.equipment)
+        && isString(item.difficulty);
+}
+
+export async function searchExercisesByMuscle(muscle: string): Promise<unknown[]> {
+    const apiKey = import.meta.env.VITE_API_NINJAS_KEY;
+
+    if (typeof apiKey !== "string" || apiKey.length === 0) {
         throw new ApiNinjasError(
             "API key no configurada. Creá la variable VITE_API_NINJAS_KEY en el archivo .env",
         );
@@ -63,5 +92,13 @@ export async function searchExercisesByMuscle(muscle: string): Promise<ApiNinjaE
         throw new ApiNinjasError("La API devolvió un formato inesperado.");
     }
 
-    return data as ApiNinjaExercise[];
+    const validated: unknown[] = [];
+    for (const item of data) {
+        if (!isApiItem(item) || !structuralFields(item)) {
+            throw new ApiNinjasError("Ítem de API con estructura inválida: faltan campos obligatorios (name, type, instructions).");
+        }
+        validated.push(item);
+    }
+
+    return validated;
 }

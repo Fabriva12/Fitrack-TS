@@ -1,4 +1,4 @@
-import type { Instructor, User } from "../Types";
+import type { Instructor, User, ExperienceLevel, RestLevel } from "../Types";
 import {
     calculateWeeklyLoad,
     calculateRestRecommendation,
@@ -12,19 +12,19 @@ interface Props {
     users: User[];
 }
 
-const LEVEL_LABEL = {
+const LEVEL_LABEL: Record<ExperienceLevel, string> = {
     beginner: "Principiante",
     intermediate: "Intermedio",
     advanced: "Avanzado",
-} as const;
+};
 
-const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] as const;
+const DAYS: readonly string[] = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-const RECO_ICON = {
+const RECO_ICON: Record<RestLevel, string> = {
     low: "⚠️",
     moderate: "✅",
     high: "🔴",
-} as const;
+};
 
 function DayIndicator({ sessions }: { sessions: string[] }) {
     return (

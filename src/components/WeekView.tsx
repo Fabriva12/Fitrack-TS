@@ -25,6 +25,7 @@ import {
     generateUnifiedReport,
 } from "../Logic";
 import ExternalSearch from "./ExternalSearch";
+import { isCardioExercise, isStrengthExercise, isFlexibilityExercise } from "../guards";
 
 interface WeekViewProps {
     sessions: DaySession[];
@@ -47,6 +48,44 @@ const CATEGORY_LABELS: Record<string, string> = {
     flexibility: "Flexibilidad",
 };
 
+const CATEGORIES: Exercise['category'][] = ['cardio', 'strength', 'flexibility'];
+
+function parseCategory(value: string): Exercise['category'] {
+    if (value === 'cardio' || value === 'strength' || value === 'flexibility') return value;
+    return 'cardio';
+}
+
+function updateFormName(prev: ExerciseForm, name: string): ExerciseForm {
+    switch (prev.category) {
+        case 'cardio': return { ...prev, name };
+        case 'strength': return { ...prev, name };
+        case 'flexibility': return { ...prev, name };
+    }
+}
+
+function updateFormDuration(prev: ExerciseForm, duration: number): ExerciseForm {
+    switch (prev.category) {
+        case 'cardio': return { ...prev, duration };
+        case 'strength': return { ...prev, duration };
+        case 'flexibility': return { ...prev, duration };
+    }
+}
+
+function updateFormCalories(prev: ExerciseForm, calories: number): ExerciseForm {
+    if (prev.category !== 'cardio') return prev;
+    return { ...prev, caloriesBurned: calories };
+}
+
+function updateFormWeight(prev: ExerciseForm, weight: number): ExerciseForm {
+    if (prev.category !== 'strength') return prev;
+    return { ...prev, weight };
+}
+
+function updateFormComments(prev: ExerciseForm, comments: string): ExerciseForm {
+    if (prev.category !== 'flexibility') return prev;
+    return { ...prev, comments };
+}
+
 function emptyForm(category: Exercise['category']): ExerciseForm {
     switch (category) {
         case 'cardio': return { category: 'cardio', name: '', duration: 0, caloriesBurned: 0 };
@@ -62,7 +101,6 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
     const [showForm, setShowForm] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [showReport, setShowReport] = useState(false);
-    const [externalExercises, setExternalExercises] = useState<Exercise[]>([]);
     const [externalInvalid, setExternalInvalid] = useState<InvalidExercise[]>([]);
     const [workoutStatuses, setWorkoutStatuses] = useState<Record<SessionId, WorkoutStatus>>({});
 
@@ -91,14 +129,6 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         );
     }
 
-    function toggleWorkoutStatus(sessionId: SessionId) {
-        setWorkoutStatuses(prev => {
-            const current = prev[sessionId] ?? "pending";
-            const next: WorkoutStatus = current === "pending" ? "completed" : "pending";
-            return { ...prev, [sessionId]: next };
-        });
-    }
-
     function handleAddExternal(exercises: Exercise[]) {
         const session = getSession(selectedDay);
         let updatedSessions: DaySession[];
@@ -117,17 +147,21 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         }
 
         onUpdateSessions(updatedSessions);
-        setExternalExercises(prev => [...prev, ...exercises]);
         setShowSearch(false);
     }
 
+    const allExercises = useMemo(() => sessions.flatMap(s => s.exercises), [sessions]);
+    const apiCount = useMemo(() => allExercises.filter(e => e.origin === 'api').length, [allExercises]);
+
+    const existingNames = useMemo(() => {
+        const names = new Set(EXERCISE_CATALOG.map(item => item.name));
+        for (const ex of allExercises) names.add(ex.name);
+        return names;
+    }, [allExercises]);
+
     const unifiedReport: UnifiedReport = useMemo(
-        () => generateUnifiedReport(
-            sessions.flatMap(s => s.exercises),
-            externalExercises,
-            externalInvalid,
-        ),
-        [sessions, externalExercises, externalInvalid],
+        () => generateUnifiedReport(allExercises, externalInvalid),
+        [allExercises, externalInvalid],
     );
 
     function handleSearchResult(_valid: Exercise[], invalid: InvalidExercise[]) {
@@ -181,6 +215,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         const exercise: Exercise = {
             id: crypto.randomUUID(),
             ...formData,
+            origin: 'local',
             completed: false,
         };
 
@@ -300,6 +335,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                         "forearms", "glutes", "hamstrings", "lats", "lower_back",
                         "middle_back", "neck", "quadriceps", "traps", "triceps",
                     ]}
+                    existingNames={existingNames}
                     onAddExercises={handleAddExternal}
                     onSearchResult={handleSearchResult}
                     sessionDay={selectedDay}
@@ -316,23 +352,19 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                         <div className="modal-body">
                             <div className="report-summary">
                                 <span className="rs-total">
-                                    Total ejercicios: {
-                                        Object.values(unifiedReport.byCategory).reduce((s, exs) => s + exs.length, 0)
-                                    }
+                                    Total ejercicios: {allExercises.length}
                                 </span>
                                 <span className="rs-local">
-                                    Locales: {sessions.flatMap(s => s.exercises).length}
+                                    Locales: {allExercises.length - apiCount}
                                 </span>
                                 <span className="rs-api">
-                                    API: {externalExercises.length}
+                                    API: {apiCount}
                                 </span>
                             </div>
-                            {(['cardio', 'strength', 'flexibility'] as const).map(cat => {
+                            {CATEGORIES.map(cat => {
                                 const exercises = unifiedReport.byCategory[cat];
                                 if (!exercises || exercises.length === 0) return null;
                                 const totalMin = exercises.reduce((s, e) => s + e.duration, 0);
-                                const isExternal = (name: string) =>
-                                    externalExercises.some(ex => ex.name === name);
                                 return (
                                     <div key={cat} className="report-category">
                                         <h4 className={`${cat}-header`}>{CATEGORY_LABELS[cat]} ({exercises.length})</h4>
@@ -341,8 +373,8 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                                             {exercises.map(e => (
                                                 <li key={e.id} className="report-item">
                                                     <span className="ri-name">{e.name}</span>
-                                                    <span className={`ri-source ${isExternal(e.name) ? 'external' : 'local'}`}>
-                                                        {isExternal(e.name) ? 'API' : 'Local'}
+                                                    <span className={`ri-source ${e.origin === 'api' ? 'external' : 'local'}`}>
+                                                        {e.origin === 'api' ? 'API' : 'Local'}
                                                     </span>
                                                     <span className="ri-duration">{e.duration}min</span>
                                                     <span className="ri-desc">{getExerciseDescription(e)}</span>
@@ -396,16 +428,20 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                                 )}
                             </h4>
                             {session && (
-                                <label className="workout-status-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={(workoutStatuses[session.id] ?? "pending") === "completed"}
-                                        onChange={() => toggleWorkoutStatus(session.id)}
-                                    />
-                                    <span className="workout-status-text">
-                                        {(workoutStatuses[session.id] ?? "pending") === "completed" ? "Completado" : "Pendiente"}
-                                    </span>
-                                </label>
+                                <div className="workout-status-group">
+                                    <button
+                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "pending" ? "active" : ""}`}
+                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "pending" }))}
+                                    >Pendiente</button>
+                                    <button
+                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "completed" ? "active" : ""}`}
+                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "completed" }))}
+                                    >Completado</button>
+                                    <button
+                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "skipped" ? "active" : ""}`}
+                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "skipped" }))}
+                                    >Saltado</button>
+                                </div>
                             )}
                             <div className="day-exercises">
                                 {session ? (
@@ -461,7 +497,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                         <label>Categoría:
                             <select
                                 value={exerciseCategory}
-                                onChange={e => handleCategoryChange(e.target.value as Exercise['category'])}
+                                onChange={e => handleCategoryChange(parseCategory(e.target.value))}
                             >
                                 <option value="cardio">Cardio</option>
                                 <option value="strength">Fuerza</option>
@@ -505,7 +541,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                             placeholder="Nombre del ejercicio"
                             value={formData.name}
                             onChange={e =>
-                                setFormData(prev => ({ ...prev, name: e.target.value } as ExerciseForm))
+                                setFormData(prev => updateFormName(prev, e.target.value))
                             }
                         />
                         <input
@@ -513,18 +549,16 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                             placeholder="Duración (minutos)"
                             value={formData.duration || ""}
                             onChange={e =>
-                                setFormData(prev => ({ ...prev, duration: Number(e.target.value) } as ExerciseForm))
+                                setFormData(prev => updateFormDuration(prev, Number(e.target.value)))
                             }
                         />
                         {exerciseCategory === 'cardio' && (
                             <input
                                 type="number"
                                 placeholder="Calorías quemadas"
-                                value={(formData as Extract<ExerciseForm, { category: 'cardio' }>).caloriesBurned || ""}
+                                value={formData.category === 'cardio' ? formData.caloriesBurned || "" : ""}
                                 onChange={e =>
-                                    setFormData(prev =>
-                                        ({ ...prev, caloriesBurned: Number(e.target.value) } as ExerciseForm),
-                                    )
+                                    setFormData(prev => updateFormCalories(prev, Number(e.target.value)))
                                 }
                             />
                         )}
@@ -532,11 +566,9 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                             <input
                                 type="number"
                                 placeholder="Peso levantado (kg)"
-                                value={(formData as Extract<ExerciseForm, { category: 'strength' }>).weight || ""}
+                                value={formData.category === 'strength' ? formData.weight || "" : ""}
                                 onChange={e =>
-                                    setFormData(prev =>
-                                        ({ ...prev, weight: Number(e.target.value) } as ExerciseForm),
-                                    )
+                                    setFormData(prev => updateFormWeight(prev, Number(e.target.value)))
                                 }
                             />
                         )}
@@ -544,11 +576,9 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                             <input
                                 type="text"
                                 placeholder="Comentarios (ej: tipo de estiramiento)"
-                                value={(formData as Extract<ExerciseForm, { category: 'flexibility' }>).comments}
+                                value={formData.category === 'flexibility' ? formData.comments : ""}
                                 onChange={e =>
-                                    setFormData(prev =>
-                                        ({ ...prev, comments: e.target.value } as ExerciseForm),
-                                    )
+                                    setFormData(prev => updateFormComments(prev, e.target.value))
                                 }
                             />
                         )}
@@ -563,9 +593,10 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                 <div className="category-summary">
                     <h3>Resumen por categoría</h3>
                     <div className="category-grid">
-                        {(['cardio', 'strength', 'flexibility'] as const).map(cat => {
+                        {CATEGORIES.map(cat => {
+                            const byGuard = cat === 'cardio' ? isCardioExercise : cat === 'strength' ? isStrengthExercise : isFlexibilityExercise;
                             const catExercises = sessions.flatMap(s =>
-                                s.exercises.filter(e => e.category === cat),
+                                s.exercises.filter(byGuard),
                             );
                             if (catExercises.length === 0) return null;
                             const catDuration = catExercises.reduce((sum, e) => sum + e.duration, 0);

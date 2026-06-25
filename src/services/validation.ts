@@ -7,70 +7,72 @@ import type {
 } from "../Types";
 import { mapApiToCategory } from "../Logic";
 
-function hasMinimalFields(raw: unknown): raw is Record<string, unknown> {
-    if (typeof raw !== "object" || raw === null) return false;
-    return true;
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
 }
 
-function isNonEmptyString(value: unknown): value is string {
-    return typeof value === "string" && value.trim().length > 0;
+function extractString(value: unknown, fallback: string = ""): string {
+    return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 export function validateExternalExercises(
-    apiExercises: ApiNinjaExercise[],
+    apiExercises: unknown[],
     existingNames: Set<string>,
 ): ValidationResult {
     const valid: Exercise[] = [];
     const invalid: InvalidExercise[] = [];
 
     for (const raw of apiExercises) {
-        if (!hasMinimalFields(raw)) {
-            invalid.push({ data: raw as ApiNinjaExercise, reason: "No es un objeto válido" });
-            continue;
-        }
-
-        const ex = raw as Record<string, unknown>;
-        const reasons: string[] = [];
-
-        if (!isNonEmptyString(ex.name)) {
-            reasons.push("Falta el nombre del ejercicio");
-        }
-
-        if (!isNonEmptyString(ex.type)) {
-            reasons.push("Falta el tipo de ejercicio");
-        }
-
-        if (!isNonEmptyString(ex.instructions)) {
-            reasons.push("Faltan las instrucciones");
-        }
-
-        if (reasons.length > 0) {
-            invalid.push({ data: raw as ApiNinjaExercise, reason: reasons.join("; ") });
-            continue;
-        }
-
-        const apiType = ex.type as string;
-        const category = mapApiToCategory(apiType);
-
-        if (category === null) {
+        if (!isRecord(raw)) {
             invalid.push({
-                data: raw as ApiNinjaExercise,
-                reason: `Tipo de ejercicio desconocido: "${apiType}"`,
+                data: { name: "", type: "", muscle: "", equipment: "", difficulty: "", instructions: "" },
+                reason: "No es un objeto válido",
             });
             continue;
         }
 
-        const name = ex.name as string;
+        const name = extractString(raw.name);
+        const type = extractString(raw.type);
+        const instructions = extractString(raw.instructions);
+        const reasons: string[] = [];
+
+        if (!name) reasons.push("Falta el nombre del ejercicio");
+        if (!type) reasons.push("Falta el tipo de ejercicio");
+        if (!instructions) reasons.push("Faltan las instrucciones");
+
+        const partial: ApiNinjaExercise = {
+            name,
+            type,
+            instructions,
+            muscle: extractString(raw.muscle),
+            equipment: extractString(raw.equipment),
+            difficulty: extractString(raw.difficulty),
+        };
+
+        if (reasons.length > 0) {
+            invalid.push({ data: partial, reason: reasons.join("; ") });
+            continue;
+        }
+
+        const category = mapApiToCategory(type);
+
+        if (category === null) {
+            invalid.push({
+                data: partial,
+                reason: `Tipo de ejercicio desconocido: "${type}"`,
+            });
+            continue;
+        }
 
         if (existingNames.has(name)) {
             invalid.push({
-                data: raw as ApiNinjaExercise,
+                data: partial,
                 reason: `El ejercicio "${name}" ya existe en el catálogo`,
             });
             continue;
         }
 
-        const exercise = buildExercise(raw as ApiNinjaExercise, category);
+        const exercise = buildExercise(partial, category);
         valid.push(exercise);
     }
 
@@ -78,37 +80,37 @@ export function validateExternalExercises(
 }
 
 function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exercise {
-    const base = {
-        id: crypto.randomUUID(),
-        name: api.name,
-        completed: false,
-    };
-
     switch (category) {
-        case "cardio": {
+        case "cardio":
             return {
-                ...base,
+                id: crypto.randomUUID(),
+                name: api.name,
+                completed: false,
+                origin: 'api',
                 category: "cardio",
                 duration: 30,
                 caloriesBurned: estimateCardioCalories(api),
-            } as Exercise;
-        }
-        case "strength": {
+            };
+        case "strength":
             return {
-                ...base,
+                id: crypto.randomUUID(),
+                name: api.name,
+                completed: false,
+                origin: 'api',
                 category: "strength",
                 duration: 20,
                 weight: 0,
-            } as Exercise;
-        }
-        case "flexibility": {
+            };
+        case "flexibility":
             return {
-                ...base,
+                id: crypto.randomUUID(),
+                name: api.name,
+                completed: false,
+                origin: 'api',
                 category: "flexibility",
                 duration: 25,
                 comments: api.instructions.slice(0, 200),
-            } as Exercise;
-        }
+            };
     }
 }
 

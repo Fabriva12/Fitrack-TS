@@ -23,6 +23,7 @@ interface ExerciseBase {
     name: string;
     duration: number;
     completed: boolean;
+    origin: 'local' | 'api';
 }
 
 export interface CardioExercise extends ExerciseBase {

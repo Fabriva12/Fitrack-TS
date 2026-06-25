@@ -8,12 +8,13 @@ type SearchStatus = "idle" | "loading" | "success" | "error";
 
 interface ExternalSearchProps {
     muscleGroups: string[];
+    existingNames: Set<string>;
     onAddExercises: (exercises: Exercise[]) => void;
     onSearchResult: (valid: Exercise[], invalid: InvalidExercise[]) => void;
     sessionDay: string;
 }
 
-export default function ExternalSearch({ muscleGroups, onAddExercises, onSearchResult, sessionDay }: ExternalSearchProps) {
+export default function ExternalSearch({ muscleGroups, existingNames, onAddExercises, onSearchResult, sessionDay }: ExternalSearchProps) {
     const [muscle, setMuscle] = useState("");
     const [status, setStatus] = useState<SearchStatus>("idle");
     const [validExercises, setValidExercises] = useState<Exercise[]>([]);
@@ -34,7 +35,7 @@ export default function ExternalSearch({ muscleGroups, onAddExercises, onSearchR
 
         try {
             const apiExercises = await searchExercisesByMuscle(trimmed);
-            const result = validateExternalExercises(apiExercises, new Set());
+            const result = validateExternalExercises(apiExercises, existingNames);
             setValidExercises(result.valid);
             setInvalidExercises(result.invalid);
             onSearchResult(result.valid, result.invalid);
