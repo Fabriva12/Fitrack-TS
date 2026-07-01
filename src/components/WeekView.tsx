@@ -10,6 +10,8 @@ import type {
     UnifiedReport,
     InvalidExercise,
 } from "../Types";
+import { nextId } from "../store/id";
+import { exerciseStore } from "../store";
 import { EXERCISE_CATALOG } from "../data/catalog";
 import type { CatalogItem } from "../data/catalog";
 import {
@@ -133,6 +135,10 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         const session = getSession(selectedDay);
         let updatedSessions: DaySession[];
 
+        for (const ex of exercises) {
+            exerciseStore.seed(ex);
+        }
+
         if (session) {
             updatedSessions = sessions.map(s =>
                 s.day === selectedDay
@@ -142,7 +148,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         } else {
             updatedSessions = [
                 ...sessions,
-                { id: crypto.randomUUID(), day: selectedDay, exercises },
+                { id: nextId(), day: selectedDay, exercises },
             ];
         }
 
@@ -213,11 +219,13 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         }
 
         const exercise: Exercise = {
-            id: crypto.randomUUID(),
+            id: nextId(),
             ...formData,
             origin: 'local',
             completed: false,
         };
+
+        exerciseStore.seed(exercise);
 
         const existing = getSession(selectedDay);
         let updatedSessions: DaySession[];
@@ -231,7 +239,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         } else {
             updatedSessions = [
                 ...sessions,
-                { id: crypto.randomUUID(), day: selectedDay, exercises: [exercise] },
+                { id: nextId(), day: selectedDay, exercises: [exercise] },
             ];
         }
 

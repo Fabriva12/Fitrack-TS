@@ -1,8 +1,8 @@
-export type ExerciseId = string;
-export type UserId = string;
-export type InstructorId = string;
-export type RoutineId = string;
-export type SessionId = string;
+export type ExerciseId = number;
+export type UserId = number;
+export type InstructorId = number;
+export type RoutineId = number;
+export type SessionId = number;
 
 export type DayOfWeek = "Lunes" | "Martes" | "Miércoles" | "Jueves" | "Viernes" | "Sábado" | "Domingo";
 

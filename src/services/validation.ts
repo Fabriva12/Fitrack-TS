@@ -6,6 +6,7 @@ import type {
     InvalidExercise,
 } from "../Types";
 import { mapApiToCategory } from "../Logic";
+import { nextId } from "../store/id";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
@@ -83,7 +84,7 @@ function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exerc
     switch (category) {
         case "cardio":
             return {
-                id: crypto.randomUUID(),
+                id: nextId(),
                 name: api.name,
                 completed: false,
                 origin: 'api',
@@ -93,7 +94,7 @@ function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exerc
             };
         case "strength":
             return {
-                id: crypto.randomUUID(),
+                id: nextId(),
                 name: api.name,
                 completed: false,
                 origin: 'api',
@@ -103,7 +104,7 @@ function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exerc
             };
         case "flexibility":
             return {
-                id: crypto.randomUUID(),
+                id: nextId(),
                 name: api.name,
                 completed: false,
                 origin: 'api',

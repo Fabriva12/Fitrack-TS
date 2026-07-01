@@ -20,7 +20,7 @@ export default function ExternalSearch({ muscleGroups, existingNames, onAddExerc
     const [validExercises, setValidExercises] = useState<Exercise[]>([]);
     const [invalidExercises, setInvalidExercises] = useState<InvalidExercise[]>([]);
     const [errorMsg, setErrorMsg] = useState("");
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
     async function handleSearch(e: FormEvent) {
         e.preventDefault();
@@ -50,7 +50,7 @@ export default function ExternalSearch({ muscleGroups, existingNames, onAddExerc
         }
     }
 
-    function toggleSelect(id: string) {
+    function toggleSelect(id: number) {
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (next.has(id)) {

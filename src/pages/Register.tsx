@@ -4,11 +4,13 @@ import RegistrationForm from "../components/RegistrationForm";
 import UserProfile from "../components/UserProfile";
 import WeekView from "../components/WeekView";
 import { DEMO_USER, DEMO_ROUTINE } from "../data/demo";
+import { userStore, exerciseStore } from "../store";
+import { nextId } from "../store/id";
 
 function buildRoutine(sessions: DaySession[]) {
     if (sessions.length === 0) return null;
     return {
-        id: crypto.randomUUID(),
+        id: nextId(),
         name: "Mi rutina semanal",
         startDate: new Date().toISOString().split('T')[0],
         sessions,
@@ -20,7 +22,7 @@ export default function Register() {
     const [sessions, setSessions] = useState<DaySession[]>([]);
 
     const [user, setUser] = useState<User>({
-        id: crypto.randomUUID(),
+        id: nextId(),
         name: "", age: 0, email: "",
         experienceLevel: "beginner",
         routine: null,
@@ -61,6 +63,7 @@ export default function Register() {
             return;
         }
 
+        userStore.add(user);
         console.log("Usuario registrado:", user);
         alert("Usuario registrado correctamente");
         setStep(2);
@@ -68,7 +71,14 @@ export default function Register() {
 
     const loadDemo = () => {
         const routine = buildRoutine(DEMO_ROUTINE);
-        setUser({ ...DEMO_USER, routine });
+        const fullUser = { ...DEMO_USER, routine };
+        userStore.seed(fullUser);
+        for (const s of DEMO_ROUTINE) {
+            for (const ex of s.exercises) {
+                exerciseStore.seed(ex);
+            }
+        }
+        setUser(fullUser);
         setSessions(DEMO_ROUTINE);
         setStep(2);
     };
