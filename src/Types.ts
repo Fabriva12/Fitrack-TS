@@ -23,6 +23,7 @@ interface ExerciseBase {
     name: string;
     duration: number;
     completed: boolean;
+    origin: 'local' | 'api';
 }
 
 export interface CardioExercise extends ExerciseBase {
@@ -103,4 +104,30 @@ export interface RestRecommendation {
     message: string;
     trainsTooMuch: boolean;
     trainsTooLittle: boolean;
+}
+
+export type WorkoutStatus = 'pending' | 'completed' | 'skipped';
+
+export interface ApiNinjaExercise {
+    name: string;
+    type: string;
+    muscle: string;
+    equipment: string;
+    difficulty: string;
+    instructions: string;
+}
+
+export interface InvalidExercise {
+    data: ApiNinjaExercise;
+    reason: string;
+}
+
+export interface ValidationResult {
+    valid: Exercise[];
+    invalid: InvalidExercise[];
+}
+
+export interface UnifiedReport {
+    byCategory: Partial<Record<ExerciseCategory, Exercise[]>>;
+    invalid: InvalidExercise[];
 }

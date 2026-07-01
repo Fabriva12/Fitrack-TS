@@ -1,13 +1,17 @@
 import type {
     Exercise,
+    ExerciseCategory,
     DaySession,
     WeeklyLoad,
     RestRecommendation,
     RestLevel,
+    UnifiedReport,
+    InvalidExercise,
 } from "./Types";
+import { isCardioExercise, isStrengthExercise, isFlexibilityExercise } from "./guards";
 
 export function calculateCalories(exercise: Exercise): number {
-    if (exercise.category === 'cardio') {
+    if (isCardioExercise(exercise)) {
         return exercise.caloriesBurned;
     }
     return 0;
@@ -76,14 +80,15 @@ export function calculatePercentageOfTotal(calories: number, totalCalories: numb
 }
 
 export function getExerciseDescription(exercise: Exercise): string {
-    switch (exercise.category) {
-        case 'cardio':
-            return `${exercise.caloriesBurned} cal quemadas`;
-        case 'strength':
-            return `${exercise.weight}kg levantados`;
-        case 'flexibility':
-            return exercise.comments || 'Sin comentarios';
+    if (isCardioExercise(exercise)) {
+        const intensity = exercise.duration > 0
+            ? (exercise.caloriesBurned / exercise.duration).toFixed(1)
+            : '—';
+        return `${exercise.caloriesBurned} cal · ${intensity} cal/min`;
     }
+    if (isStrengthExercise(exercise)) return `${exercise.weight} kg`;
+    if (isFlexibilityExercise(exercise)) return exercise.comments || 'Sin datos';
+    return '';
 }
 
 export function calculateWeeklyLoad(sessions: DaySession[]): WeeklyLoad {
@@ -94,20 +99,13 @@ export function calculateWeeklyLoad(sessions: DaySession[]): WeeklyLoad {
 
     for (const session of sessions) {
         for (const ex of session.exercises) {
-            switch (ex.category) {
-                case 'cardio': {
-                    cardioMinutes += ex.duration;
-                    totalCalories += ex.caloriesBurned;
-                    break;
-                }
-                case 'strength': {
-                    strengthMinutes += ex.duration;
-                    break;
-                }
-                case 'flexibility': {
-                    flexibilityMinutes += ex.duration;
-                    break;
-                }
+            if (isCardioExercise(ex)) {
+                cardioMinutes += ex.duration;
+                totalCalories += ex.caloriesBurned;
+            } else if (isStrengthExercise(ex)) {
+                strengthMinutes += ex.duration;
+            } else if (isFlexibilityExercise(ex)) {
+                flexibilityMinutes += ex.duration;
             }
         }
     }
@@ -148,4 +146,40 @@ export function calculateRestRecommendation(sessions: DaySession[]): RestRecomme
     }
 
     return { level, message, trainsTooMuch, trainsTooLittle };
+}
+
+const API_TYPE_MAP: Record<string, ExerciseCategory> = {
+    cardio: "cardio",
+    strength: "strength",
+    powerlifting: "strength",
+    olympic_weightlifting: "strength",
+    strongman: "strength",
+    stretching: "flexibility",
+    plyometrics: "flexibility",
+};
+
+export function mapApiToCategory(apiType: string): ExerciseCategory | null {
+    return API_TYPE_MAP[apiType.toLowerCase()] ?? null;
+}
+
+export function generateUnifiedReport(
+    localExercises: Exercise[],
+    invalid: InvalidExercise[],
+): UnifiedReport {
+    const byCategory: UnifiedReport["byCategory"] = {};
+
+    for (const ex of localExercises) {
+        if (isCardioExercise(ex)) {
+            if (!byCategory.cardio) byCategory.cardio = [];
+            byCategory.cardio.push(ex);
+        } else if (isStrengthExercise(ex)) {
+            if (!byCategory.strength) byCategory.strength = [];
+            byCategory.strength.push(ex);
+        } else if (isFlexibilityExercise(ex)) {
+            if (!byCategory.flexibility) byCategory.flexibility = [];
+            byCategory.flexibility.push(ex);
+        }
+    }
+
+    return { byCategory, invalid };
 }

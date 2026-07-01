@@ -13,6 +13,18 @@ Planificador de rutinas de ejercicios semanales. Registrá tu perfil, armá tu r
 npm install
 ```
 
+## Configuración
+
+Creá un archivo `.env` en la raíz del proyecto con:
+
+```env
+VITE_API_NINJAS_KEY=tu_api_key_aqui
+```
+
+Obtené tu key gratuita en [https://api-ninjas.com/](https://api-ninjas.com/).
+
+> `.env` está en `.gitignore` — no se versiona. Usá `.env.example` como referencia.
+
 ## Desarrollo
 
 ```bash
