@@ -1,3 +1,5 @@
+import { isRecord } from "../guards";
+
 const API_BASE = "https://api.api-ninjas.com/v1/exercises";
 
 export class ApiNinjasError extends Error {
@@ -17,11 +19,6 @@ interface RawApiItem {
     muscle: unknown;
     equipment: unknown;
     difficulty: unknown;
-    [key: string]: unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
 }
 
 function isString(value: unknown): value is string {

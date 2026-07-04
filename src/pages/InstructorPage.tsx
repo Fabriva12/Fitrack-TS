@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import InstructorDashboard from "../components/InstructorDashboard";
-import { userStore, getDemoInstructor } from "../store";
+import { userStore, getDemoInstructor, useStore } from "../store";
 
 export default function InstructorPage() {
   const instructor = useMemo(() => getDemoInstructor(), []);
-  const users = useMemo(() => userStore.getAll(), []);
+  const { data: users } = useStore(userStore);
 
   if (!instructor) {
     return <p>No hay datos de instructor disponibles.</p>;

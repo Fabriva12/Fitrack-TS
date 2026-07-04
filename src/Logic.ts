@@ -74,11 +74,6 @@ export function findHighestCalorieExercise(sessions: DaySession[]): Exercise | n
     return highest;
 }
 
-export function calculatePercentageOfTotal(calories: number, totalCalories: number): number {
-    if (totalCalories === 0) return 0;
-    return Math.round((calories / totalCalories) * 100);
-}
-
 export function getExerciseDescription(exercise: Exercise): string {
     if (isCardioExercise(exercise)) {
         const intensity = exercise.duration > 0

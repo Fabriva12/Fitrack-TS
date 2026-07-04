@@ -21,13 +21,14 @@ export class Store<T extends { id: number }> {
   }
 
   add(data: Omit<T, 'id'>): T {
-    const entity = { ...data, id: this.nextId++ } as unknown as T;
+    const entity = { ...data, id: this.nextId++ } as T;
     this.items.push(entity);
     this.notify();
     return { ...entity };
   }
 
   seed(entity: T): void {
+    if (this.items.some(item => item.id === entity.id)) return;
     if (entity.id >= this.nextId) {
       this.nextId = entity.id + 1;
     }

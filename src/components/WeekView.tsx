@@ -7,85 +7,31 @@ import type {
     SessionId,
     ExerciseForm,
     WorkoutStatus,
-    UnifiedReport,
     InvalidExercise,
 } from "../Types";
-import { nextId } from "../store/id";
 import { exerciseStore } from "../store";
 import { EXERCISE_CATALOG } from "../data/catalog";
 import type { CatalogItem } from "../data/catalog";
 import {
     calculateAverageCaloriesPerDay,
     calculateCalories,
-    calculateSessionDuration,
     calculateWeeklyLoad,
     calculateRestRecommendation,
     findHighestCalorieExercise,
     findLongestExercise,
     formatDuration,
-    getExerciseDescription,
     generateUnifiedReport,
 } from "../Logic";
+import { RECO_ICON, CATEGORY_LABELS, DAYS, CATEGORIES } from "../constants";
+import DayColumn from "./DayColumn";
+import ExerciseForm from "./ExerciseForm";
+import ReportModal from "./ReportModal";
 import ExternalSearch from "./ExternalSearch";
 import { isCardioExercise, isStrengthExercise, isFlexibilityExercise } from "../guards";
 
 interface WeekViewProps {
     sessions: DaySession[];
     onUpdateSessions: (sessions: DaySession[]) => void;
-}
-
-const DAYS: DayOfWeek[] = [
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-    "Domingo",
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-    cardio: "Cardio",
-    strength: "Fuerza",
-    flexibility: "Flexibilidad",
-};
-
-const CATEGORIES: Exercise['category'][] = ['cardio', 'strength', 'flexibility'];
-
-function parseCategory(value: string): Exercise['category'] {
-    if (value === 'cardio' || value === 'strength' || value === 'flexibility') return value;
-    return 'cardio';
-}
-
-function updateFormName(prev: ExerciseForm, name: string): ExerciseForm {
-    switch (prev.category) {
-        case 'cardio': return { ...prev, name };
-        case 'strength': return { ...prev, name };
-        case 'flexibility': return { ...prev, name };
-    }
-}
-
-function updateFormDuration(prev: ExerciseForm, duration: number): ExerciseForm {
-    switch (prev.category) {
-        case 'cardio': return { ...prev, duration };
-        case 'strength': return { ...prev, duration };
-        case 'flexibility': return { ...prev, duration };
-    }
-}
-
-function updateFormCalories(prev: ExerciseForm, calories: number): ExerciseForm {
-    if (prev.category !== 'cardio') return prev;
-    return { ...prev, caloriesBurned: calories };
-}
-
-function updateFormWeight(prev: ExerciseForm, weight: number): ExerciseForm {
-    if (prev.category !== 'strength') return prev;
-    return { ...prev, weight };
-}
-
-function updateFormComments(prev: ExerciseForm, comments: string): ExerciseForm {
-    if (prev.category !== 'flexibility') return prev;
-    return { ...prev, comments };
 }
 
 function emptyForm(category: Exercise['category']): ExerciseForm {
@@ -96,6 +42,8 @@ function emptyForm(category: Exercise['category']): ExerciseForm {
     }
 }
 
+let nextTempSessionId = -1000;
+
 export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) {
     const [selectedDay, setSelectedDay] = useState<DayOfWeek>("Lunes");
     const [exerciseCategory, setExerciseCategory] = useState<Exercise['category']>('cardio');
@@ -105,12 +53,67 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
     const [showReport, setShowReport] = useState(false);
     const [externalInvalid, setExternalInvalid] = useState<InvalidExercise[]>([]);
     const [workoutStatuses, setWorkoutStatuses] = useState<Record<SessionId, WorkoutStatus>>({});
+    const [editingWeightId, setEditingWeightId] = useState<ExerciseId | null>(null);
+    const [editingWeightValue, setEditingWeightValue] = useState("");
+
+    function handleStartEditWeight(exerciseId: ExerciseId, currentWeight: number) {
+        setEditingWeightId(exerciseId);
+        setEditingWeightValue(String(currentWeight));
+    }
+
+    function handleSaveWeight(sessionId: SessionId, exerciseId: ExerciseId) {
+        const newWeight = Number(editingWeightValue);
+        if (isNaN(newWeight) || newWeight <= 0) {
+            setEditingWeightId(null);
+            return;
+        }
+
+        const exercise = sessions
+            .flatMap(s => s.exercises)
+            .find(e => e.id === exerciseId) as StrengthExercise | undefined;
+
+        if (!exercise || exercise.category !== 'strength') return;
+
+        const oldWeight = exercise.weight;
+        if (oldWeight === newWeight) {
+            setEditingWeightId(null);
+            return;
+        }
+
+        exerciseStore.update(exerciseId, { weight: newWeight, previousWeight: oldWeight });
+
+        onUpdateSessions(
+            sessions.map(s =>
+                s.id === sessionId
+                    ? {
+                        ...s,
+                        exercises: s.exercises.map(ex =>
+                            ex.id === exerciseId
+                                ? { ...ex, weight: newWeight, previousWeight: oldWeight }
+                                : ex,
+                        ),
+                    }
+                    : s,
+            ),
+        );
+
+        setEditingWeightId(null);
+    }
+
+    function handleCancelEditWeight() {
+        setEditingWeightId(null);
+    }
 
     function getSession(day: DayOfWeek): DaySession | undefined {
         return sessions.find(s => s.day === day);
     }
 
     function handleToggleCompleted(sessionId: SessionId, exerciseId: ExerciseId) {
+        const exercise = sessions.flatMap(s => s.exercises).find(e => e.id === exerciseId);
+        if (exercise) {
+            exerciseStore.update(exerciseId, { completed: !exercise.completed });
+        }
+
         onUpdateSessions(
             sessions.map(s =>
                 s.id === sessionId
@@ -120,6 +123,18 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                             ex.id === exerciseId ? { ...ex, completed: !ex.completed } : ex,
                         ),
                     }
+                    : s,
+            ),
+        );
+    }
+
+    function handleDeleteExercise(sessionId: SessionId, exerciseId: ExerciseId) {
+        exerciseStore.deleteById(exerciseId);
+
+        onUpdateSessions(
+            sessions.map(s =>
+                s.id === sessionId
+                    ? { ...s, exercises: s.exercises.filter(ex => ex.id !== exerciseId) }
                     : s,
             ),
         );
@@ -135,20 +150,21 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         const session = getSession(selectedDay);
         let updatedSessions: DaySession[];
 
-        for (const ex of exercises) {
-            exerciseStore.seed(ex);
-        }
+        const storedExercises = exercises.map(({ id, ...data }) => {
+            void id;
+            return exerciseStore.add(data);
+        });
 
         if (session) {
             updatedSessions = sessions.map(s =>
                 s.day === selectedDay
-                    ? { ...s, exercises: [...s.exercises, ...exercises] }
+                    ? { ...s, exercises: [...s.exercises, ...storedExercises] }
                     : s,
             );
         } else {
             updatedSessions = [
                 ...sessions,
-                { id: nextId(), day: selectedDay, exercises },
+                { id: nextTempSessionId--, day: selectedDay, exercises: storedExercises },
             ];
         }
 
@@ -165,7 +181,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         return names;
     }, [allExercises]);
 
-    const unifiedReport: UnifiedReport = useMemo(
+    const unifiedReport = useMemo(
         () => generateUnifiedReport(allExercises, externalInvalid),
         [allExercises, externalInvalid],
     );
@@ -218,14 +234,11 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
             return;
         }
 
-        const exercise: Exercise = {
-            id: nextId(),
+        const exercise = exerciseStore.add({
             ...formData,
             origin: 'local',
             completed: false,
-        };
-
-        exerciseStore.seed(exercise);
+        });
 
         const existing = getSession(selectedDay);
         let updatedSessions: DaySession[];
@@ -239,7 +252,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
         } else {
             updatedSessions = [
                 ...sessions,
-                { id: nextId(), day: selectedDay, exercises: [exercise] },
+                { id: nextTempSessionId--, day: selectedDay, exercises: [exercise] },
             ];
         }
 
@@ -315,7 +328,7 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                 <div className={`reco-card reco-${reco.level}`}>
                     <div className="reco-card-header">
                         <span className="reco-icon">
-                            {reco.level === 'high' ? '🔴' : reco.level === 'low' ? '⚠️' : '✅'}
+                            {RECO_ICON[reco.level]}
                         </span>
                         <span className="reco-title">Recomendación de descanso</span>
                     </div>
@@ -350,251 +363,50 @@ export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) 
                 />
             )}
 
-            {showReport && (
-                <div className="modal-overlay" onClick={() => setShowReport(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Reporte unificado</h3>
-                            <button className="btn-close" onClick={() => setShowReport(false)}>✕</button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="report-summary">
-                                <span className="rs-total">
-                                    Total ejercicios: {allExercises.length}
-                                </span>
-                                <span className="rs-local">
-                                    Locales: {allExercises.length - apiCount}
-                                </span>
-                                <span className="rs-api">
-                                    API: {apiCount}
-                                </span>
-                            </div>
-                            {CATEGORIES.map(cat => {
-                                const exercises = unifiedReport.byCategory[cat];
-                                if (!exercises || exercises.length === 0) return null;
-                                const totalMin = exercises.reduce((s, e) => s + e.duration, 0);
-                                return (
-                                    <div key={cat} className="report-category">
-                                        <h4 className={`${cat}-header`}>{CATEGORY_LABELS[cat]} ({exercises.length})</h4>
-                                        <p className="report-total">{totalMin} min totales</p>
-                                        <ul className="report-list">
-                                            {exercises.map(e => (
-                                                <li key={e.id} className="report-item">
-                                                    <span className="ri-name">{e.name}</span>
-                                                    <span className={`ri-source ${e.origin === 'api' ? 'external' : 'local'}`}>
-                                                        {e.origin === 'api' ? 'API' : 'Local'}
-                                                    </span>
-                                                    <span className="ri-duration">{e.duration}min</span>
-                                                    <span className="ri-desc">{getExerciseDescription(e)}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                );
-                            })}
-                            {unifiedReport.invalid.length > 0 && (
-                                <div className="report-invalid">
-                                    <h4>Ejercicios con datos incompletos ({unifiedReport.invalid.length})</h4>
-                                    <ul className="report-invalid-list">
-                                        {unifiedReport.invalid.map((inv, i) => (
-                                            <li key={i} className="report-invalid-item">
-                                                <span className="ri-name">{inv.data.name || "Sin nombre"}</span>
-                                                <span className="ri-reason">{inv.reason}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {unifiedReport.invalid.length === 0 &&
-                                Object.keys(unifiedReport.byCategory).length === 0 && (
-                                <p className="report-empty">No hay ejercicios para mostrar.</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ReportModal
+                open={showReport}
+                onClose={() => setShowReport(false)}
+                allExercises={allExercises}
+                apiCount={apiCount}
+                unifiedReport={unifiedReport}
+            />
 
             <div className="day-grid">
-                {DAYS.map(day => {
-                    const session = getSession(day);
-                    const dayDuration = session ? calculateSessionDuration(session) : 0;
-                    const completedCount = session
-                        ? session.exercises.filter(e => e.completed).length
-                        : 0;
-
-                    return (
-                        <div
-                            key={day}
-                            className={`day-column ${selectedDay === day ? 'active' : ''} ${session ? 'has-session' : ''}`}
-                        >
-                            <h4 className="day-header">
-                                {day}
-                                {session && (
-                                    <small className="day-stats">
-                                        {dayDuration} min · {completedCount}/{session.exercises.length}
-                                    </small>
-                                )}
-                            </h4>
-                            {session && (
-                                <div className="workout-status-group">
-                                    <button
-                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "pending" ? "active" : ""}`}
-                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "pending" }))}
-                                    >Pendiente</button>
-                                    <button
-                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "completed" ? "active" : ""}`}
-                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "completed" }))}
-                                    >Completado</button>
-                                    <button
-                                        className={`status-btn ${(workoutStatuses[session.id] ?? "pending") === "skipped" ? "active" : ""}`}
-                                        onClick={() => setWorkoutStatuses(prev => ({ ...prev, [session.id]: "skipped" }))}
-                                    >Saltado</button>
-                                </div>
-                            )}
-                            <div className="day-exercises">
-                                {session ? (
-                                    session.exercises.map(ex => (
-                                        <div key={ex.id} className={`exercise-item ${ex.completed ? 'done' : ''}`}>
-                                            <div className="ex-row">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={ex.completed}
-                                                    onChange={() => handleToggleCompleted(session.id, ex.id)}
-                                                />
-                                                <span className="ex-name">{ex.name}</span>
-                                                <span className="ex-status">{ex.completed ? '✅' : '❌'}</span>
-                                            </div>
-                                            <div className="ex-details">
-                                                <span className={`ex-category cat-${ex.category}`}>
-                                                    {CATEGORY_LABELS[ex.category]}
-                                                </span>
-                                                <span className="ex-duration">{ex.duration}min</span>
-                                                <span className="ex-desc">{getExerciseDescription(ex)}</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="empty-day">Sin ejercicios</p>
-                                )}
-                            </div>
-                            {session && (
-                                <textarea
-                                    className="session-notes"
-                                    placeholder="Notas del día..."
-                                    value={session.notes ?? ''}
-                                    onChange={e => handleEditNotes(session.id, e.target.value)}
-                                    rows={2}
-                                />
-                            )}
-                            <button
-                                className="btn-add-day"
-                                onClick={() => openForm(day)}
-                            >
-                                + Agregar
-                            </button>
-                        </div>
-                    );
-                })}
+                {DAYS.map(day => (
+                    <DayColumn
+                        key={day}
+                        day={day}
+                        session={getSession(day)}
+                        isSelected={selectedDay === day}
+                        editingWeightId={editingWeightId}
+                        editingWeightValue={editingWeightValue}
+                        workoutStatus={workoutStatuses[getSession(day)?.id ?? -1] ?? "pending"}
+                        onToggleCompleted={handleToggleCompleted}
+                        onDeleteExercise={handleDeleteExercise}
+                        onEditNotes={handleEditNotes}
+                        onStartEditWeight={handleStartEditWeight}
+                        onSaveWeight={handleSaveWeight}
+                        onCancelEditWeight={handleCancelEditWeight}
+                        onEditWeightValue={setEditingWeightValue}
+                        onSetWorkoutStatus={(sessionId, status) =>
+                            setWorkoutStatuses(prev => ({ ...prev, [sessionId]: status }))
+                        }
+                        onOpenForm={openForm}
+                    />
+                ))}
             </div>
 
             {showForm && (
-                <div className="add-exercise-section">
-                    <h3>Agregar ejercicio a {selectedDay}</h3>
-
-                    <div className="form-category-select">
-                        <label>Categoría:
-                            <select
-                                value={exerciseCategory}
-                                onChange={e => handleCategoryChange(parseCategory(e.target.value))}
-                            >
-                                <option value="cardio">Cardio</option>
-                                <option value="strength">Fuerza</option>
-                                <option value="flexibility">Flexibilidad</option>
-                            </select>
-                        </label>
-                        <button className="btn-cancel" onClick={() => setShowForm(false)}>Cancelar</button>
-                    </div>
-
-                    <div className="catalog-grid">
-                        {EXERCISE_CATALOG
-                            .filter(item => item.category === exerciseCategory)
-                            .map(item => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    className="catalog-item"
-                                    onClick={() => fillFormFromCatalog(item)}
-                                >
-                                    <span className="ci-name">{item.name}</span>
-                                    <small className="ci-detail">
-                                        {item.defaultDuration}min
-                                        {item.defaultCaloriesBurned && ` · ${item.defaultCaloriesBurned}cal`}
-                                        {item.defaultWeight && ` · ${item.defaultWeight}kg`}
-                                    </small>
-                                </button>
-                            ))}
-                        <button
-                            type="button"
-                            className="catalog-item custom"
-                            onClick={() => setFormData(emptyForm(exerciseCategory))}
-                        >
-                            <span className="ci-name">Personalizado</span>
-                            <small className="ci-detail">Completá los datos manualmente</small>
-                        </button>
-                    </div>
-
-                    <div className="form-fields">
-                        <input
-                            type="text"
-                            placeholder="Nombre del ejercicio"
-                            value={formData.name}
-                            onChange={e =>
-                                setFormData(prev => updateFormName(prev, e.target.value))
-                            }
-                        />
-                        <input
-                            type="number"
-                            placeholder="Duración (minutos)"
-                            value={formData.duration || ""}
-                            onChange={e =>
-                                setFormData(prev => updateFormDuration(prev, Number(e.target.value)))
-                            }
-                        />
-                        {exerciseCategory === 'cardio' && (
-                            <input
-                                type="number"
-                                placeholder="Calorías quemadas"
-                                value={formData.category === 'cardio' ? formData.caloriesBurned || "" : ""}
-                                onChange={e =>
-                                    setFormData(prev => updateFormCalories(prev, Number(e.target.value)))
-                                }
-                            />
-                        )}
-                        {exerciseCategory === 'strength' && (
-                            <input
-                                type="number"
-                                placeholder="Peso levantado (kg)"
-                                value={formData.category === 'strength' ? formData.weight || "" : ""}
-                                onChange={e =>
-                                    setFormData(prev => updateFormWeight(prev, Number(e.target.value)))
-                                }
-                            />
-                        )}
-                        {exerciseCategory === 'flexibility' && (
-                            <input
-                                type="text"
-                                placeholder="Comentarios (ej: tipo de estiramiento)"
-                                value={formData.category === 'flexibility' ? formData.comments : ""}
-                                onChange={e =>
-                                    setFormData(prev => updateFormComments(prev, e.target.value))
-                                }
-                            />
-                        )}
-                        <button type="button" className="btn-add" onClick={handleAddExercise}>
-                            Agregar a {selectedDay}
-                        </button>
-                    </div>
-                </div>
+                <ExerciseForm
+                    selectedDay={selectedDay}
+                    exerciseCategory={exerciseCategory}
+                    formData={formData}
+                    onAdd={handleAddExercise}
+                    onCategoryChange={handleCategoryChange}
+                    onFormChange={setFormData}
+                    onFillFromCatalog={fillFormFromCatalog}
+                    onClose={() => setShowForm(false)}
+                />
             )}
 
             {sessions.length > 0 && (

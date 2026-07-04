@@ -34,6 +34,7 @@ export interface CardioExercise extends ExerciseBase {
 export interface StrengthExercise extends ExerciseBase {
     category: 'strength';
     weight: number;
+    previousWeight?: number;
 }
 
 export interface FlexibilityExercise extends ExerciseBase {
@@ -77,13 +78,13 @@ export interface WeeklyRoutine {
     id: RoutineId;
     name: string;
     startDate: string;
-    sessions: DaySession[];
+    sessionIds: SessionId[];
 }
 
 export interface User extends Person {
     id: UserId;
     experienceLevel: ExperienceLevel;
-    routine: WeeklyRoutine | null;
+    routineId: RoutineId | null;
 }
 
 export interface Instructor extends Person {

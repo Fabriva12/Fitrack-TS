@@ -1,33 +1,62 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { userStore, exerciseStore } from "../store";
+import { userStore, exerciseStore, routineStore, sessionStore, useStore } from "../store";
 import {
   calculateRestRecommendation,
   calculateRoutineDuration,
   calculateRoutineCalories,
   formatDuration,
 } from "../Logic";
-import type { ExperienceLevel } from "../Types";
+import type { DaySession, StrengthExercise } from "../Types";
 import { isCardioExercise, isStrengthExercise, isFlexibilityExercise } from "../guards";
+import { LEVEL_LABEL, RECO_ICON } from "../constants";
 
-const LEVEL_LABEL: Record<ExperienceLevel, string> = {
-  beginner: "Principiante",
-  intermediate: "Intermedio",
-  advanced: "Avanzado",
-};
+function getUserSessions(routineId: number | null): DaySession[] {
+  if (!routineId) return [];
+  const routine = routineStore.getById(routineId);
+  if (!routine) return [];
+  return routine.sessionIds
+    .map(id => sessionStore.getById(id))
+    .filter((s): s is DaySession => s !== undefined);
+}
 
-const RECO_ICON = {
-  low: "⚠️",
-  moderate: "✅",
-  high: "🔴",
-} as const;
+function deleteUser(userId: number): void {
+  const user = userStore.getById(userId);
+  if (!user) return;
+
+  if (user.routineId) {
+    const routine = routineStore.getById(user.routineId);
+    if (routine) {
+      for (const sessionId of routine.sessionIds) {
+        const session = sessionStore.getById(sessionId);
+        if (session) {
+          for (const ex of session.exercises) {
+            exerciseStore.deleteById(ex.id);
+          }
+        }
+        sessionStore.deleteById(sessionId);
+      }
+    }
+    routineStore.deleteById(user.routineId);
+  }
+
+  userStore.deleteById(userId);
+}
 
 export default function Dashboard() {
-  const users = useMemo(() => userStore.getAll(), []);
-  const exercises = useMemo(() => exerciseStore.getAll(), []);
+  const { data: allUsers } = useStore(userStore);
+  const { data: exercises } = useStore(exerciseStore);
+  const { data: routines } = useStore(routineStore);
+
+  const [search, setSearch] = useState("");
+
+  const activeRoutineCount = routines.filter(r => r.sessionIds.length > 0).length;
+
+  const users = search
+    ? allUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase()))
+    : allUsers;
 
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.routine && u.routine.sessions.length > 0).length;
   const localCount = exercises.filter(e => e.origin === "local").length;
   const apiCount = exercises.filter(e => e.origin === "api").length;
 
@@ -38,9 +67,9 @@ export default function Dashboard() {
   const recentActivity = useMemo(() => {
     const activity: { icon: string; text: string }[] = [];
 
-    for (const user of users) {
-      if (!user.routine) continue;
-      for (const session of user.routine.sessions) {
+    for (const user of allUsers) {
+      const sessions = getUserSessions(user.routineId);
+      for (const session of sessions) {
         for (const ex of session.exercises) {
           if (ex.completed) {
             activity.push({
@@ -48,18 +77,21 @@ export default function Dashboard() {
               text: `${ex.name} completado, ${user.name}`,
             });
           }
-          if (ex.category === "strength" && ex.weight > 0) {
-            activity.push({
-              icon: "✅",
-              text: `${ex.name} actualizado, ${user.name} (${ex.weight} kg)`,
-            });
+            if (ex.category === "strength") {
+            const stored = exerciseStore.getById(ex.id) as StrengthExercise | undefined;
+            if (stored?.previousWeight !== undefined && stored.previousWeight !== stored.weight) {
+              activity.push({
+                icon: "✅",
+                text: `${ex.name} actualizado, ${user.name} (${stored.previousWeight} → ${stored.weight} kg)`,
+              });
+            }
           }
         }
       }
     }
 
     return activity.slice(0, 10);
-  }, [users]);
+  }, [allUsers]);
 
   return (
     <div className="instructor-page">
@@ -82,16 +114,26 @@ export default function Dashboard() {
             </div>
             <div className="dash-stat-line">
               <span className="dash-stat-key">Rutinas activas:</span>
-              <span className="dash-stat-val">{activeUsers}</span>
+              <span className="dash-stat-val">{activeRoutineCount}</span>
             </div>
           </div>
         </section>
 
-        {activeUsers > 0 && (
+        {activeRoutineCount > 0 && (
           <section className="dash-section">
+            <div className="dash-search">
+              <input
+                type="text"
+                placeholder="Buscar usuario por nombre..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="dash-search-input"
+              />
+            </div>
             <div className="dash-user-cards">
-              {users.filter(u => u.routine && u.routine.sessions.length > 0).map(user => {
-                const sessions = user.routine!.sessions;
+              {users.filter(u => getUserSessions(u.routineId).length > 0).map(user => {
+                const routine = routineStore.getById(user.routineId!);
+                const sessions = getUserSessions(user.routineId);
                 const reco = calculateRestRecommendation(sessions);
                 const totalDuration = calculateRoutineDuration(sessions);
                 const totalCalories = calculateRoutineCalories(sessions);
@@ -99,10 +141,18 @@ export default function Dashboard() {
                 return (
                   <div key={user.id} className="dash-user-line">
                     <div className="dash-user-head">
-                      👤 {user.name} <span className="user-level">{LEVEL_LABEL[user.experienceLevel]}</span>
+                      <div>
+                        <span className="dash-user-name">{user.name}</span>
+                        <span className="user-level">{LEVEL_LABEL[user.experienceLevel]}</span>
+                      </div>
+                      <button
+                        className="btn-delete-user"
+                        onClick={() => deleteUser(user.id)}
+                        title="Eliminar usuario"
+                      >✕</button>
                     </div>
                     <div className="dash-user-meta">
-                      {user.routine!.name}, {sessions.length} días | {formatDuration(totalDuration)} | {totalCalories} kcal
+                      {routine!.name}, {sessions.length} días | {formatDuration(totalDuration)} | {totalCalories} kcal
                     </div>
                     <div className={`dash-user-reco reco-${reco.level}`}>
                       Carga: {RECO_ICON[reco.level]} {reco.message}
