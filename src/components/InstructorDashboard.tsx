@@ -1,4 +1,5 @@
-import type { Instructor, User, ExperienceLevel, RestLevel } from "../Types";
+import type { Instructor, User, DaySession } from "../Types";
+import { routineStore, sessionStore } from "../store";
 import {
     calculateWeeklyLoad,
     calculateRestRecommendation,
@@ -6,25 +7,12 @@ import {
     calculateRoutineCalories,
     formatDuration,
 } from "../Logic";
+import { LEVEL_LABEL, DAYS, RECO_ICON } from "../constants";
 
 interface Props {
     instructor: Instructor;
     users: User[];
 }
-
-const LEVEL_LABEL: Record<ExperienceLevel, string> = {
-    beginner: "Principiante",
-    intermediate: "Intermedio",
-    advanced: "Avanzado",
-};
-
-const DAYS: readonly string[] = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-const RECO_ICON: Record<RestLevel, string> = {
-    low: "⚠️",
-    moderate: "✅",
-    high: "🔴",
-};
 
 function DayIndicator({ sessions }: { sessions: string[] }) {
     return (
@@ -42,9 +30,19 @@ function DayIndicator({ sessions }: { sessions: string[] }) {
     );
 }
 
+function getUserSessions(routineId: number | null): DaySession[] {
+    if (!routineId) return [];
+    const routine = routineStore.getById(routineId);
+    if (!routine) return [];
+    return routine.sessionIds
+        .map(id => sessionStore.getById(id))
+        .filter((s): s is DaySession => s !== undefined);
+}
+
 export default function InstructorDashboard({ instructor, users }: Props) {
-    const trainingUsers = users.filter(u => u.routine && u.routine.sessions.length > 0);
-    const inactiveUsers = users.filter(u => !u.routine || u.routine.sessions.length === 0);
+    const activeUsers = users.map(u => ({ user: u, sessions: getUserSessions(u.routineId) }));
+    const trainingUsers = activeUsers.filter(({ sessions }) => sessions.length > 0);
+    const inactiveUsers = activeUsers.filter(({ sessions }) => sessions.length === 0);
 
     return (
         <section className="instructor-dashboard">
@@ -60,8 +58,7 @@ export default function InstructorDashboard({ instructor, users }: Props) {
             </header>
 
             <div className="user-cards">
-                {trainingUsers.map(user => {
-                    const sessions = user.routine!.sessions;
+                {trainingUsers.map(({ user, sessions }) => {
                     const load = calculateWeeklyLoad(sessions);
                     const reco = calculateRestRecommendation(sessions);
                     const totalDuration = calculateRoutineDuration(sessions);
@@ -104,17 +101,19 @@ export default function InstructorDashboard({ instructor, users }: Props) {
                                 </div>
                             </div>
 
-                            <div className="category-breakdown">
-                                <span className="cat-bar cardio" style={{ width: `${(load.cardioMinutes / load.totalMinutes) * 100}%` }}>
-                                    {load.cardioMinutes > 0 && `${formatDuration(load.cardioMinutes)}`}
-                                </span>
-                                <span className="cat-bar strength" style={{ width: `${(load.strengthMinutes / load.totalMinutes) * 100}%` }}>
-                                    {load.strengthMinutes > 0 && `${formatDuration(load.strengthMinutes)}`}
-                                </span>
-                                <span className="cat-bar flexibility" style={{ width: `${(load.flexibilityMinutes / load.totalMinutes) * 100}%` }}>
-                                    {load.flexibilityMinutes > 0 && `${formatDuration(load.flexibilityMinutes)}`}
-                                </span>
-                            </div>
+                            {load.totalMinutes > 0 && (
+                                <div className="category-breakdown">
+                                    <span className="cat-bar cardio" style={{ width: `${(load.cardioMinutes / load.totalMinutes) * 100}%` }}>
+                                        {load.cardioMinutes > 0 && `${formatDuration(load.cardioMinutes)}`}
+                                    </span>
+                                    <span className="cat-bar strength" style={{ width: `${(load.strengthMinutes / load.totalMinutes) * 100}%` }}>
+                                        {load.strengthMinutes > 0 && `${formatDuration(load.strengthMinutes)}`}
+                                    </span>
+                                    <span className="cat-bar flexibility" style={{ width: `${(load.flexibilityMinutes / load.totalMinutes) * 100}%` }}>
+                                        {load.flexibilityMinutes > 0 && `${formatDuration(load.flexibilityMinutes)}`}
+                                    </span>
+                                </div>
+                            )}
 
                             <p className={`reco reco-${reco.level}`}>
                                 {RECO_ICON[reco.level]} {reco.message}
@@ -145,8 +144,8 @@ export default function InstructorDashboard({ instructor, users }: Props) {
                 <div className="inactive-section">
                     <h3>Usuarios sin rutina ({inactiveUsers.length})</h3>
                     <ul>
-                        {inactiveUsers.map(u => (
-                            <li key={u.id}>{u.name} — {u.email}</li>
+                        {inactiveUsers.map(({ user }) => (
+                            <li key={user.id}>{user.name} — {user.email}</li>
                         ))}
                     </ul>
                 </div>

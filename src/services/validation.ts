@@ -6,10 +6,7 @@ import type {
     InvalidExercise,
 } from "../Types";
 import { mapApiToCategory } from "../Logic";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
+import { isRecord } from "../guards";
 
 function extractString(value: unknown, fallback: string = ""): string {
     return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
@@ -79,11 +76,13 @@ export function validateExternalExercises(
     return { valid, invalid };
 }
 
+let nextTempExerciseId = -2000;
+
 function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exercise {
     switch (category) {
         case "cardio":
             return {
-                id: crypto.randomUUID(),
+                id: nextTempExerciseId--,
                 name: api.name,
                 completed: false,
                 origin: 'api',
@@ -93,7 +92,7 @@ function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exerc
             };
         case "strength":
             return {
-                id: crypto.randomUUID(),
+                id: nextTempExerciseId--,
                 name: api.name,
                 completed: false,
                 origin: 'api',
@@ -103,7 +102,7 @@ function buildExercise(api: ApiNinjaExercise, category: ExerciseCategory): Exerc
             };
         case "flexibility":
             return {
-                id: crypto.randomUUID(),
+                id: nextTempExerciseId--,
                 name: api.name,
                 completed: false,
                 origin: 'api',

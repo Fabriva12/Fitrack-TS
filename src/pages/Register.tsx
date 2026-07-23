@@ -4,26 +4,18 @@ import RegistrationForm from "../components/RegistrationForm";
 import UserProfile from "../components/UserProfile";
 import WeekView from "../components/WeekView";
 import { DEMO_USER, DEMO_ROUTINE } from "../data/demo";
-
-function buildRoutine(sessions: DaySession[]) {
-    if (sessions.length === 0) return null;
-    return {
-        id: crypto.randomUUID(),
-        name: "Mi rutina semanal",
-        startDate: new Date().toISOString().split('T')[0],
-        sessions,
-    };
-}
+import { userStore, exerciseStore, routineStore, sessionStore } from "../store";
 
 export default function Register() {
     const [step, setStep] = useState(1);
     const [sessions, setSessions] = useState<DaySession[]>([]);
+    const [routineSaved, setRoutineSaved] = useState(false);
 
     const [user, setUser] = useState<User>({
-        id: crypto.randomUUID(),
+        id: -1,
         name: "", age: 0, email: "",
         experienceLevel: "beginner",
-        routine: null,
+        routineId: null,
     });
 
     const handleChange = (
@@ -39,11 +31,43 @@ export default function Register() {
 
     const handleUpdateSessions = (newSessions: DaySession[]) => {
         setSessions(newSessions);
-        setUser((prev) => ({
-            ...prev,
-            routine: buildRoutine(newSessions),
-        }));
     };
+
+    function handleSaveRoutine() {
+        const sessionsWithExercises = sessions.filter(s => s.exercises.length > 0);
+        if (sessionsWithExercises.length === 0) {
+            alert("Agregá al menos un ejercicio antes de guardar");
+            return;
+        }
+
+        if (user.routineId) {
+            const oldRoutine = routineStore.getById(user.routineId);
+            if (oldRoutine) {
+                for (const sid of oldRoutine.sessionIds) {
+                    const s = sessionStore.getById(sid);
+                    if (s) {
+                        for (const ex of s.exercises) exerciseStore.deleteById(ex.id);
+                    }
+                    sessionStore.deleteById(sid);
+                }
+                routineStore.deleteById(user.routineId);
+            }
+        }
+
+        const storedSessionIds = sessionsWithExercises.map(s =>
+            sessionStore.add({ day: s.day, exercises: s.exercises, notes: s.notes }).id,
+        );
+        const routine = routineStore.add({
+            name: "Mi rutina semanal",
+            startDate: new Date().toISOString().split('T')[0],
+            sessionIds: storedSessionIds,
+        });
+
+        const updatedUser = userStore.update(user.id, { routineId: routine.id });
+        if (updatedUser) setUser(updatedUser);
+        setRoutineSaved(true);
+        alert("Rutina guardada correctamente");
+    }
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -61,14 +85,30 @@ export default function Register() {
             return;
         }
 
-        console.log("Usuario registrado:", user);
+        const { id: userId, ...userData } = user;
+        void userId;
+        const storedUser = userStore.add({ ...userData, routineId: null });
+        setUser(storedUser);
+        console.log("Usuario registrado:", storedUser);
         alert("Usuario registrado correctamente");
         setStep(2);
     };
 
     const loadDemo = () => {
-        const routine = buildRoutine(DEMO_ROUTINE);
-        setUser({ ...DEMO_USER, routine });
+        for (const s of DEMO_ROUTINE) {
+            sessionStore.seed(s);
+            for (const ex of s.exercises) {
+                exerciseStore.seed(ex);
+            }
+        }
+        const routine = routineStore.add({
+            name: "Mi rutina semanal",
+            startDate: new Date().toISOString().split('T')[0],
+            sessionIds: DEMO_ROUTINE.map(s => s.id),
+        });
+        const fullUser = { ...DEMO_USER, routineId: routine.id };
+        userStore.seed(fullUser);
+        setUser(fullUser);
         setSessions(DEMO_ROUTINE);
         setStep(2);
     };
@@ -96,6 +136,12 @@ export default function Register() {
                         sessions={sessions}
                         onUpdateSessions={handleUpdateSessions}
                     />
+                    {!routineSaved && sessions.some(s => s.exercises.length > 0) && (
+                        <button type="button" className="btn-save-routine" onClick={handleSaveRoutine}>
+                            Guardar mi rutina
+                        </button>
+                    )}
+                    {routineSaved && <p className="save-success">Rutina guardada correctamente</p>}
                 </>
             )}
         </div>

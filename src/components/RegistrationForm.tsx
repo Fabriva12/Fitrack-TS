@@ -1,5 +1,6 @@
 import { type FormEvent, type ChangeEvent } from "react";
 import type { User } from "../Types";
+import { LEVEL_LABEL } from "../constants";
 
 interface Props {
     user: User;
@@ -46,9 +47,9 @@ export default function RegistrationForm({ user, onChange, onSubmit }: Props) {
                     value={user.experienceLevel}
                     onChange={onChange}
                 >
-                    <option value="beginner">Principiante</option>
-                    <option value="intermediate">Intermedio</option>
-                    <option value="advanced">Avanzado</option>
+                    {Object.entries(LEVEL_LABEL).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                    ))}
                 </select>
 
                 <button type="submit">Registrarse</button>

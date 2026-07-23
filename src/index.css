@@ -149,6 +149,22 @@ code {
   gap: 4px;
 }
 
+.btn-delete-ex {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #999;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.btn-delete-ex:hover {
+  color: #c00;
+  background: #fee;
+}
+
 .ex-name {
   flex: 1;
   font-weight: 500;
@@ -777,4 +793,206 @@ code {
   padding: 24px 0;
   text-align: center;
   color: #666;
+}
+
+/* ─── Dashboard ─── */
+
+.dash-section {
+  margin-bottom: 24px;
+}
+
+.dash-section-title {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+
+.dash-stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-stat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.dash-stat-key {
+  color: #666;
+}
+
+.dash-stat-val {
+  font-weight: 600;
+}
+
+.dash-stat-detail {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.dash-user-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-user-line {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-user-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.btn-delete-user {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #999;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.btn-delete-user:hover {
+  color: #c00;
+  background: #fee;
+}
+
+.dash-search {
+  margin-bottom: 12px;
+}
+
+.dash-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.dash-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.dash-user-meta {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.dash-user-reco {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.dash-user-reco.reco-low {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.dash-user-reco.reco-moderate {
+  background: #d4edda;
+  color: #155724;
+}
+
+.dash-user-reco.reco-high {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.dash-cat-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dash-cat-item {
+  font-size: 0.95rem;
+}
+
+.dash-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #eee;
+}
+
+.dash-activity-item:last-child {
+  border-bottom: none;
+}
+
+.dash-activity-icon {
+  font-size: 1rem;
+}
+
+.dash-activity-empty {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.dash-nav-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.dash-nav-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  background: #f0f4ff;
+  transition: background 0.2s;
+}
+
+.dash-nav-card:hover {
+  background: #e0e8ff;
+}
+
+.dash-nav-text {
+  font-weight: 500;
+}
+
+.dash-nav-arrow {
+  font-size: 1.1rem;
+  color: #888;
+}
+
+@media (max-width: 700px) {
+  .dash-nav-row {
+    grid-template-columns: 1fr;
+  }
+  .dash-cat-row {
+    flex-direction: column;
+    gap: 6px;
+  }
 }

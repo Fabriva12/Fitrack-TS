@@ -1,22 +1,18 @@
 import type { User } from "../Types";
+import { LEVEL_LABEL } from "../constants";
 
 interface Props {
     user: User;
 }
 
 export default function UserProfile({ user }: Props) {
-    const levelLabel =
-        user.experienceLevel === 'beginner' ? 'Principiante'
-        : user.experienceLevel === 'intermediate' ? 'Intermedio'
-        : 'Avanzado';
-
     return (
         <section className="user-profile">
             <h3>Tu perfil</h3>
             <p>
                 {user.name} — {user.age} años — {user.email}
                 <br />
-                Nivel {levelLabel}
+                Nivel {LEVEL_LABEL[user.experienceLevel]}
             </p>
         </section>
     );
