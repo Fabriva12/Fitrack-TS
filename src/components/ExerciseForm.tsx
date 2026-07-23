@@ -99,7 +99,7 @@ export default function ExerciseForm({
                         placeholder="Calorías quemadas"
                         value={'caloriesBurned' in formData ? formData.caloriesBurned || "" : ""}
                         onChange={e =>
-                            onFormChange({ ...formData, caloriesBurned: Number(e.target.value) })
+                            onFormChange({ category: 'cardio', name: formData.name, duration: formData.duration, caloriesBurned: Number(e.target.value) })
                         }
                     />
                 )}
@@ -109,7 +109,7 @@ export default function ExerciseForm({
                         placeholder="Peso levantado (kg)"
                         value={'weight' in formData ? formData.weight || "" : ""}
                         onChange={e =>
-                            onFormChange({ ...formData, weight: Number(e.target.value) })
+                            onFormChange({ category: 'strength', name: formData.name, duration: formData.duration, weight: Number(e.target.value) })
                         }
                     />
                 )}
@@ -119,7 +119,7 @@ export default function ExerciseForm({
                         placeholder="Comentarios (ej: tipo de estiramiento)"
                         value={'comments' in formData ? formData.comments : ""}
                         onChange={e =>
-                            onFormChange({ ...formData, comments: e.target.value })
+                            onFormChange({ category: 'flexibility', name: formData.name, duration: formData.duration, comments: e.target.value })
                         }
                     />
                 )}

@@ -9,6 +9,7 @@ import { userStore, exerciseStore, routineStore, sessionStore } from "../store";
 export default function Register() {
     const [step, setStep] = useState(1);
     const [sessions, setSessions] = useState<DaySession[]>([]);
+    const [routineSaved, setRoutineSaved] = useState(false);
 
     const [user, setUser] = useState<User>({
         id: -1,
@@ -32,6 +33,42 @@ export default function Register() {
         setSessions(newSessions);
     };
 
+    function handleSaveRoutine() {
+        const sessionsWithExercises = sessions.filter(s => s.exercises.length > 0);
+        if (sessionsWithExercises.length === 0) {
+            alert("Agregá al menos un ejercicio antes de guardar");
+            return;
+        }
+
+        if (user.routineId) {
+            const oldRoutine = routineStore.getById(user.routineId);
+            if (oldRoutine) {
+                for (const sid of oldRoutine.sessionIds) {
+                    const s = sessionStore.getById(sid);
+                    if (s) {
+                        for (const ex of s.exercises) exerciseStore.deleteById(ex.id);
+                    }
+                    sessionStore.deleteById(sid);
+                }
+                routineStore.deleteById(user.routineId);
+            }
+        }
+
+        const storedSessionIds = sessionsWithExercises.map(s =>
+            sessionStore.add({ day: s.day, exercises: s.exercises, notes: s.notes }).id,
+        );
+        const routine = routineStore.add({
+            name: "Mi rutina semanal",
+            startDate: new Date().toISOString().split('T')[0],
+            sessionIds: storedSessionIds,
+        });
+
+        const updatedUser = userStore.update(user.id, { routineId: routine.id });
+        if (updatedUser) setUser(updatedUser);
+        setRoutineSaved(true);
+        alert("Rutina guardada correctamente");
+    }
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
 
@@ -48,23 +85,9 @@ export default function Register() {
             return;
         }
 
-        const routineId = sessions.length > 0 ? (() => {
-            const storedSessionIds = sessions.map(s => sessionStore.add({
-                day: s.day,
-                exercises: s.exercises,
-                notes: s.notes,
-            }).id);
-            const routine = routineStore.add({
-                name: "Mi rutina semanal",
-                startDate: new Date().toISOString().split('T')[0],
-                sessionIds: storedSessionIds,
-            });
-            return routine.id;
-        })() : null;
-
         const { id: userId, ...userData } = user;
         void userId;
-        const storedUser = userStore.add({ ...userData, routineId });
+        const storedUser = userStore.add({ ...userData, routineId: null });
         setUser(storedUser);
         console.log("Usuario registrado:", storedUser);
         alert("Usuario registrado correctamente");
@@ -113,6 +136,12 @@ export default function Register() {
                         sessions={sessions}
                         onUpdateSessions={handleUpdateSessions}
                     />
+                    {!routineSaved && sessions.some(s => s.exercises.length > 0) && (
+                        <button type="button" className="btn-save-routine" onClick={handleSaveRoutine}>
+                            Guardar mi rutina
+                        </button>
+                    )}
+                    {routineSaved && <p className="save-success">Rutina guardada correctamente</p>}
                 </>
             )}
         </div>

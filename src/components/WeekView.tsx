@@ -5,7 +5,8 @@ import type {
     DayOfWeek,
     ExerciseId,
     SessionId,
-    ExerciseForm,
+    ExerciseForm as ExerciseFormType,
+    StrengthExercise,
     WorkoutStatus,
     InvalidExercise,
 } from "../Types";
@@ -34,7 +35,7 @@ interface WeekViewProps {
     onUpdateSessions: (sessions: DaySession[]) => void;
 }
 
-function emptyForm(category: Exercise['category']): ExerciseForm {
+function emptyForm(category: Exercise['category']): ExerciseFormType {
     switch (category) {
         case 'cardio': return { category: 'cardio', name: '', duration: 0, caloriesBurned: 0 };
         case 'strength': return { category: 'strength', name: '', duration: 0, weight: 0 };
@@ -47,7 +48,7 @@ let nextTempSessionId = -1000;
 export default function WeekView({ sessions, onUpdateSessions }: WeekViewProps) {
     const [selectedDay, setSelectedDay] = useState<DayOfWeek>("Lunes");
     const [exerciseCategory, setExerciseCategory] = useState<Exercise['category']>('cardio');
-    const [formData, setFormData] = useState<ExerciseForm>(emptyForm('cardio'));
+    const [formData, setFormData] = useState<ExerciseFormType>(emptyForm('cardio'));
     const [showForm, setShowForm] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [showReport, setShowReport] = useState(false);

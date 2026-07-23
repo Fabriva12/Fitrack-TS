@@ -53,7 +53,7 @@ export default function Dashboard() {
   const activeRoutineCount = routines.filter(r => r.sessionIds.length > 0).length;
 
   const users = search
-    ? allUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase()))
+    ? userStore.find(u => u.name.toLowerCase().includes(search.toLowerCase()))
     : allUsers;
 
   const totalUsers = users.length;
